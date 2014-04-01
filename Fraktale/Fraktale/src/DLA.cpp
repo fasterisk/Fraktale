@@ -70,17 +70,15 @@ void DLA::RenderNextElement()
 	}
 
 	//DRAW
-	ItlSetRasterValue(v2Random.x, v2Random.y, 1.0f);
-	
+	float fValue = 1.0f;
+	ItlSetRasterValue(v2Random.x, v2Random.y, fValue);
 
 	glUseProgram(m_glnShader);
 
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, m_glnTextureID);
-
 	
-
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, m_iWindowWidth, m_iWindowHeight, 0, GL_RED, GL_FLOAT, m_pfRaster);
+	glTexSubImage2D(GL_TEXTURE_2D, 0, v2Random.x, v2Random.y, 1, 1, GL_RED, GL_FLOAT, &fValue);
 
 	glUniform1i(m_glnTextureID, 0);
 
