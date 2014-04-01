@@ -29,7 +29,7 @@ int main()
 	glfwWindowHint(GLFW_RESIZABLE, GL_FALSE);
 
 	// Open a window
-	GLFWwindow * pWindow = glfwCreateWindow(400, 400, "Diffusion Limited Aggregation (DLA)", NULL, NULL);
+	GLFWwindow * pWindow = glfwCreateWindow(800, 800, "Diffusion Limited Aggregation (DLA)", NULL, NULL);
 	if (pWindow == NULL)
 	{
 		std::cerr << "Failed to open GLFM window." << std::endl;
@@ -47,18 +47,45 @@ int main()
 		exit(EXIT_FAILURE);
 	}
 
-	glfwSetInputMode(pWindow, GLFW_STICKY_KEYS, GL_TRUE);
-
-	DLA stDLA(400, 400);
-
+	DLA stDLA(800, 800, DLA::START_REGION_SQUARE);
 	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+
+	bool bPaused = false;
+	bool bCanBePaused = true;
 
 	do
 	{
+		if (glfwGetKey(pWindow, GLFW_KEY_R))
+			stDLA.Reset();
+		
+		int iSpaceKeyState = glfwGetKey(pWindow, GLFW_KEY_SPACE);
+
+		if (iSpaceKeyState == GLFW_RELEASE)
+		{
+			bCanBePaused = true;
+		}
+		else if (iSpaceKeyState == GLFW_PRESS)
+		{
+			if (bCanBePaused == true)
+			{
+				bPaused = !bPaused;
+				bCanBePaused = false;
+
+				if (!bPaused)
+					glfwSetWindowTitle(pWindow, "Diffusion Limited Aggregation (DLA)");
+				else
+					glfwSetWindowTitle(pWindow, "Diffusion Limited Aggregation (DLA) (paused)");
+			}
+		}
+		
+
 		// Clear the screen
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 		
-		stDLA.RenderNextElement();
+		if (!bPaused)
+			stDLA.CalculateNextElement();
+
+		stDLA.Render();
 
 		// Swap buffers
 		glfwSwapBuffers(pWindow);

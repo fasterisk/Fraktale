@@ -7,80 +7,89 @@
 
 /*********************************************************************************************
 *********************************************************************************************/
-DLA::DLA(int iWindowWidth, int iWindowHeight)
+DLA::DLA(int iWindowWidth, int iWindowHeight, DLA::TStartRegion eStartRegion)
 {
 	m_iWindowWidth = iWindowHeight;
 	m_iWindowHeight = iWindowHeight;
+	m_eStartRegion = eStartRegion;
 
-	ItlInitialize();
+	m_iv2StartingPoint.x = m_iWindowWidth / 2;
+	m_iv2StartingPoint.y = m_iWindowHeight / 2;
+
+	m_iv2CurDrawnMin = m_iv2StartingPoint;
+	m_iv2CurDrawnMax = m_iv2StartingPoint;
+
+	m_pfRaster = NULL;
+	m_pfStartRegion = NULL;
+
+	m_iStartingRegionRadius = 10;
+
+	ItlUpdateStartRegion(m_iv2StartingPoint);
+
+	ItlInitializeRaster();
+
+	ItlInitializeShaderAndTextures();
 }
 
 /*********************************************************************************************
 *********************************************************************************************/
 DLA::~DLA()
 {
+	if (m_pfRaster != NULL)
+	{
+		delete[] m_pfRaster;
+		m_pfRaster = NULL;
+	}
+
+	if (m_pfStartRegion != NULL)
+	{
+		delete[] m_pfStartRegion;
+		m_pfStartRegion = NULL;
+	}
 }
 
 /*********************************************************************************************
 *********************************************************************************************/
-void DLA::RenderNextElement()
+void DLA::CalculateNextElement()
 {
 	//Create a point on the border of the region randomly
-	glm::ivec2 v2Random;
-
-	v2Random.x = rand() % m_iWindowWidth;
-	v2Random.y = rand() % m_iWindowHeight;
+	glm::ivec2 iv2Random = ItlGetRandomPoint();
 
 	bool bDraw = false;
 
 	while (!bDraw)
 	{
-		bDraw = ItlShouldBeDrawn(v2Random.x, v2Random.y);
+		bDraw = ItlShouldBeDrawn(iv2Random.x, iv2Random.y);
 
 		if (!bDraw)
-		{
-			int iRandom = rand() % 4;
-
-			switch (iRandom)
-			{
-			case UP:
-				if (v2Random.y < m_iWindowHeight - 1)
-					v2Random.y++;
-				break;
-
-			case RIGHT:
-				if (v2Random.x < m_iWindowWidth - 1)
-					v2Random.x++;
-				break;
-
-			case DOWN:
-				if (v2Random.y > 0)
-					v2Random.y--;
-				break;
-
-			case LEFT:
-				if (v2Random.x > 0)
-					v2Random.x--;
-				break;
-
-			default:
-				return;
-			}
-		}
+			ItlMovePoint(iv2Random);
 	}
 
 	//DRAW
-	float fValue = 1.0f;
-	ItlSetRasterValue(v2Random.x, v2Random.y, fValue);
+	ItlSetRasterValue(iv2Random.x, iv2Random.y, 1.0f);
+}
 
+/*********************************************************************************************
+*********************************************************************************************/
+void DLA::Render()
+{
 	glUseProgram(m_glnShader);
 
 	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, m_glnTextureID);
+	glBindTexture(GL_TEXTURE_2D, m_glnRasterTexID);
 	
-	glTexSubImage2D(GL_TEXTURE_2D, 0, v2Random.x, v2Random.y, 1, 1, GL_RED, GL_FLOAT, &fValue);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, m_iWindowWidth, m_iWindowHeight, 0, GL_RED, GL_FLOAT, m_pfRaster);
+	//glTexSubImage2D(GL_TEXTURE_2D, 0, iv2Random.x, iv2Random.y, 1, 1, GL_RED, GL_FLOAT, &fValue);
 
-	glUniform1i(m_glnTextureID, 0);
+	glUniform1i(m_glnRasterTexID, 0);
+
+	glActiveTexture(GL_TEXTURE1);
+	glBindTexture(GL_TEXTURE_2D, m_glnStartingRegionTexID);
+
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, m_iWindowWidth, m_iWindowHeight, 0, GL_RED, GL_FLOAT, m_pfStartRegion);
+	//glTexSubImage2D(GL_TEXTURE_2D, 0, iv2Random.x, iv2Random.y, 1, 1, GL_RED, GL_FLOAT, &fValue);
+
+	glUniform1i(m_glnRasterTexID, 1);
 
 	glEnableVertexAttribArray(0);
 	glBindBuffer(GL_ARRAY_BUFFER, m_glnVertexBuffer);
@@ -103,19 +112,51 @@ void DLA::RenderNextElement()
 
 /*********************************************************************************************
 *********************************************************************************************/
-void	DLA::ItlInitialize()
+void	DLA::Reset()
 {
+	m_iv2CurDrawnMin = m_iv2StartingPoint;
+	m_iv2CurDrawnMax = m_iv2StartingPoint;
+
+	if (m_pfRaster != NULL)
+	{
+		delete[] m_pfRaster;
+		m_pfRaster = NULL;
+	}
+
+	if (m_pfStartRegion != NULL)
+	{
+		delete[] m_pfStartRegion;
+		m_pfStartRegion = NULL;
+	}
+
+	m_iStartingRegionRadius = 10;
+
+	ItlUpdateStartRegion(m_iv2StartingPoint);
+
+	ItlInitializeRaster();
+}
+
+/*********************************************************************************************
+*********************************************************************************************/
+void	DLA::ItlInitializeRaster()
+{
+	if (m_pfRaster != NULL)
+	{
+		delete[] m_pfRaster;
+		m_pfRaster = NULL;
+	}
+
 	m_pfRaster = new float[m_iWindowWidth * m_iWindowHeight];
 	for (int i = 0; i < m_iWindowWidth * m_iWindowHeight; ++i)
 		m_pfRaster[i] = 0.0f;
 
-	int iX = m_iWindowWidth / 2;
-	int iY = m_iWindowHeight / 2;
+	ItlSetRasterValue(m_iv2StartingPoint.x, m_iv2StartingPoint.y, 1.0f);
+}
 
-
-	for (int i = 0; i < m_iWindowWidth; ++i)
-		ItlSetRasterValue(i, iY, 1.0f);
-
+/*********************************************************************************************
+*********************************************************************************************/
+void	DLA::ItlInitializeShaderAndTextures()
+{
 	static const GLfloat glfVertexBufferData[] = {
 		-1.0f, -1.0f, 0.0f,
 		1.0f, 1.0f, 0.0f,
@@ -131,14 +172,24 @@ void	DLA::ItlInitialize()
 
 	glGenBuffers(1, &m_glnVertexBuffer);
 	glBindBuffer(GL_ARRAY_BUFFER, m_glnVertexBuffer);
-	
+
 	glBufferData(GL_ARRAY_BUFFER, sizeof(glfVertexBufferData), glfVertexBufferData, GL_STATIC_DRAW);
 
-	glGenTextures(1, &m_glnTextureID);
-	glBindTexture(GL_TEXTURE_2D, m_glnTextureID);
+	// Raster texture
+	glGenTextures(1, &m_glnRasterTexID);
+	glBindTexture(GL_TEXTURE_2D, m_glnRasterTexID);
 
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, m_iWindowWidth, m_iWindowHeight, 0, GL_RED, GL_FLOAT, m_pfRaster);
-	
+
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+
+	// Starting region texture
+	glGenTextures(1, &m_glnStartingRegionTexID);
+	glBindTexture(GL_TEXTURE_2D, m_glnStartingRegionTexID);
+
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, m_iWindowWidth, m_iWindowHeight, 0, GL_RED, GL_FLOAT, m_pfStartRegion);
+
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 
@@ -239,7 +290,8 @@ void	DLA::ItlLoadShaders()
 	glDeleteShader(glnVertexShaderID);
 	glDeleteShader(glnFragmentShaderID);
 
-	m_glnTextureLocation = glGetUniformLocation(m_glnShader, "tTexture");
+	m_glnRasterTexLoc = glGetUniformLocation(m_glnShader, "tRasterTexture");
+	m_glnStartingRegionTexLoc = glGetUniformLocation(m_glnShader, "tStartingRegionTexture");
 }
 
 /*********************************************************************************************
@@ -253,4 +305,241 @@ void	DLA::ItlSetRasterValue(int iX, int iY, float fValue)
 	assert(iY < m_iWindowHeight);
 
 	m_pfRaster[iY * m_iWindowWidth + iX] = fValue;
+
+	if (iX > m_iv2CurDrawnMax.x ||
+		iX < m_iv2CurDrawnMin.x ||
+		iY > m_iv2CurDrawnMax.y ||
+		iY < m_iv2CurDrawnMin.y)
+	{
+		m_iv2CurDrawnMax.x++;
+		m_iv2CurDrawnMin.x--;
+		m_iv2CurDrawnMax.y++;
+		m_iv2CurDrawnMin.y--;
+	}
+
+	ItlUpdateStartRegion(glm::ivec2(iX, iY));
+}
+
+/*********************************************************************************************
+*********************************************************************************************/
+glm::ivec2	DLA::ItlGetRandomPoint()
+{
+	glm::ivec2 iv2RandomPoint;
+	if (m_eStartRegion == START_REGION_SQUARE)
+	{
+		int iRandom = rand() % 4;
+
+		switch (iRandom)
+		{
+		case UP:
+			iv2RandomPoint.x = (rand() % m_iv2StartRegionSize.x);
+			iv2RandomPoint.y = m_iv2StartRegionSize.y;
+			break;
+
+		case RIGHT:
+			iv2RandomPoint.x = m_iv2StartRegionSize.x;
+			iv2RandomPoint.y = (rand() % m_iv2StartRegionSize.y);
+			break;
+
+		case DOWN:
+			iv2RandomPoint.x = (rand() % m_iv2StartRegionSize.x);
+			iv2RandomPoint.y = 0;
+			break;
+
+		case LEFT:
+			iv2RandomPoint.x = 0;
+			iv2RandomPoint.y = (rand() % m_iv2StartRegionSize.y);
+			break;
+		default:
+			break;
+		}
+
+		iv2RandomPoint += m_iv2StartRegionMin;
+	}
+	else// START_REGION_CIRCLE
+	{
+		float fRandomWinkel = (rand() % 360000) / 1000.0f;
+		iv2RandomPoint.x = (int)std::trunc(std::cos(fRandomWinkel) * m_iStartingRegionRadius);
+		iv2RandomPoint.y = (int)std::trunc(std::sin(fRandomWinkel) * m_iStartingRegionRadius);
+
+		iv2RandomPoint += m_iv2StartingPoint;
+	}
+
+	return iv2RandomPoint;
+}
+
+/*********************************************************************************************
+*********************************************************************************************/
+void	DLA::ItlMovePoint(glm::ivec2 &rPoint)
+{
+	if (m_eStartRegion == START_REGION_CIRCLE)
+	{
+		glm::ivec2 v2Point(rPoint);
+		v2Point -= m_iv2StartingPoint;
+
+		int iRandom = rand() % 4;
+		double dDist = 0.0;
+
+		switch (iRandom)
+		{
+		case UP:
+			v2Point.y++;
+			dDist = std::sqrt(std::pow(v2Point.x, 2) + std::pow(v2Point.y, 2));
+
+			if (dDist < m_iStartingRegionRadius)
+				rPoint.y++;
+			break;
+
+		case RIGHT:
+			v2Point.x++;
+			dDist = std::sqrt(std::pow(v2Point.x, 2) + std::pow(v2Point.y, 2));
+
+			if (dDist < m_iStartingRegionRadius)
+				rPoint.x++;
+			break;
+
+		case DOWN:
+			v2Point.y--;
+			dDist = std::sqrt(std::pow(v2Point.x, 2) + std::pow(v2Point.y, 2));
+
+			if (dDist < m_iStartingRegionRadius)
+				rPoint.y--;
+			break;
+
+		case LEFT:
+			v2Point.x--;
+			dDist = std::sqrt(std::pow(v2Point.x, 2) + std::pow(v2Point.y, 2));
+
+			if (dDist < m_iStartingRegionRadius)
+				rPoint.x--;
+			break;
+
+		default:
+			return;
+		}
+	}
+	else
+	{
+		int iRandom = rand() % 4;
+		double dDist = 0.0;
+
+		switch (iRandom)
+		{
+		case UP:
+			if (rPoint.y < m_iv2StartRegionMax.y)
+				rPoint.y++;
+			break;
+
+		case RIGHT:
+			if (rPoint.x < m_iv2StartRegionMax.x)
+				rPoint.x++;
+			break;
+
+		case DOWN:
+			if (rPoint.y > m_iv2StartRegionMin.y)
+				rPoint.y--;
+			break;
+
+		case LEFT:
+			if (rPoint.x > m_iv2StartRegionMin.x)
+				rPoint.x--;
+			break;
+
+		default:
+			return;
+		}
+	}
+	
+}
+
+/*********************************************************************************************
+*********************************************************************************************/
+void	DLA::ItlUpdateStartRegion(glm::ivec2 iv2LastDrawnPoint)
+{
+	if (m_eStartRegion == START_REGION_SQUARE)
+	{
+		m_iv2StartRegionMin = m_iv2CurDrawnMin - 10;
+		m_iv2StartRegionMax = m_iv2CurDrawnMax + 10;
+
+		if (m_iv2StartRegionMin.x < 0)
+			m_iv2StartRegionMin.x = 0;
+
+		if (m_iv2StartRegionMax.x == m_iWindowWidth)
+			m_iv2CurDrawnMax.x = m_iWindowWidth - 1;
+
+		if (m_iv2StartRegionMin.y < 0)
+			m_iv2StartRegionMin.y = 0;
+
+		if (m_iv2StartRegionMax.y == m_iWindowHeight)
+			m_iv2CurDrawnMax.y = m_iWindowHeight - 1;
+
+		m_iv2StartRegionSize = m_iv2StartRegionMax - m_iv2StartRegionMin;
+
+		if (m_pfStartRegion != NULL)
+		{
+			delete[] m_pfStartRegion;
+			m_pfStartRegion = NULL;
+		}
+
+		m_pfStartRegion = new float[m_iWindowWidth * m_iWindowHeight];
+		for (int x = 0; x < m_iWindowWidth; ++x)
+		{
+			for (int y = 0; y < m_iWindowHeight; ++y)
+			{
+				m_pfStartRegion[y * m_iWindowWidth + x] = 0.0f;
+				if (x == m_iv2StartRegionMin.x || x == m_iv2StartRegionMax.x)
+				{
+					if (y >= m_iv2StartRegionMin.y && y <= m_iv2StartRegionMax.y)
+						m_pfStartRegion[y * m_iWindowWidth + x] = 1.0f;
+				}
+
+				if (y == m_iv2StartRegionMin.y || y == m_iv2StartRegionMax.y)
+				{
+					if (x >= m_iv2StartRegionMin.x && x <= m_iv2StartRegionMax.x)
+						m_pfStartRegion[y * m_iWindowWidth + x] = 1.0f;
+				}
+				
+			}
+		}
+	}
+	else // START_REGION_CIRCLE
+	{
+		glm::ivec2 iv2Point = iv2LastDrawnPoint - m_iv2StartingPoint;
+		double dDist = std::sqrt(std::pow(iv2Point.x, 2) + std::pow(iv2Point.y, 2));
+
+		while (dDist > (m_iStartingRegionRadius - 10))
+			m_iStartingRegionRadius++;
+
+		if (m_iStartingRegionRadius > (m_iWindowHeight / 2))
+			m_iStartingRegionRadius = (m_iWindowHeight / 2);
+		if (m_iStartingRegionRadius > (m_iWindowWidth / 2))
+			m_iStartingRegionRadius = (m_iWindowWidth / 2);
+
+		m_iv2StartRegionMin = m_iv2StartingPoint - m_iStartingRegionRadius;
+		m_iv2StartRegionMax = m_iv2StartingPoint + m_iStartingRegionRadius;
+
+		if (m_pfStartRegion != NULL)
+		{
+			delete[] m_pfStartRegion;
+			m_pfStartRegion = NULL;
+		}
+
+		m_pfStartRegion = new float[m_iWindowWidth * m_iWindowHeight];
+		for (int x = m_iv2StartRegionMin.x; x <= m_iv2StartRegionMax.x; ++x)
+		{
+			for (int y = m_iv2StartRegionMin.y; y <= m_iv2StartRegionMax.y; ++y)
+			{
+				m_pfStartRegion[y * m_iWindowWidth + x] = 0.0f;
+
+				int iX = x - m_iv2StartingPoint.x;
+				int iY = y - m_iv2StartingPoint.y;
+				
+				int iRadius = (int)std::trunc(std::sqrt(std::pow(iX, 2) + std::pow(iY, 2)));
+
+				if (iRadius == m_iStartingRegionRadius)
+					m_pfStartRegion[y * m_iWindowWidth + x] = 1.0f;
+
+			}
+		}
+	}
 }
