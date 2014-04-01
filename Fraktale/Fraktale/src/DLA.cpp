@@ -7,10 +7,10 @@
 
 /*********************************************************************************************
 *********************************************************************************************/
-DLA::DLA(unsigned int nWindowWidth, unsigned int nWindowHeight)
+DLA::DLA(int iWindowWidth, int iWindowHeight)
 {
-	m_nWindowWidth = nWindowWidth;
-	m_nWindowHeight = nWindowHeight;
+	m_iWindowWidth = iWindowHeight;
+	m_iWindowHeight = iWindowHeight;
 
 	ItlInitialize();
 }
@@ -28,8 +28,8 @@ void DLA::RenderNextElement()
 	//Create a point on the border of the region randomly
 	glm::ivec2 v2Random;
 
-	v2Random.x = rand() % m_nWindowWidth;
-	v2Random.y = rand() % m_nWindowHeight;
+	v2Random.x = rand() % m_iWindowWidth;
+	v2Random.y = rand() % m_iWindowHeight;
 
 	bool bDraw = false;
 
@@ -44,19 +44,23 @@ void DLA::RenderNextElement()
 			switch (iRandom)
 			{
 			case UP:
-				v2Random.y = (v2Random.y + 1) % m_nWindowHeight;
+				if (v2Random.y < m_iWindowHeight - 1)
+					v2Random.y++;
 				break;
 
 			case RIGHT:
-				v2Random.x = (v2Random.x + 1) % m_nWindowWidth;
+				if (v2Random.x < m_iWindowWidth - 1)
+					v2Random.x++;
 				break;
 
 			case DOWN:
-				v2Random.y = (v2Random.y - 1) % m_nWindowHeight;
+				if (v2Random.y > 0)
+					v2Random.y--;
 				break;
 
 			case LEFT:
-				v2Random.x = (v2Random.x - 1) % m_nWindowWidth;
+				if (v2Random.x > 0)
+					v2Random.x--;
 				break;
 
 			default:
@@ -67,7 +71,6 @@ void DLA::RenderNextElement()
 
 	//DRAW
 	ItlSetRasterValue(v2Random.x, v2Random.y, 1.0f);
-
 	
 
 	glUseProgram(m_glnShader);
@@ -75,7 +78,9 @@ void DLA::RenderNextElement()
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, m_glnTextureID);
 
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, m_nWindowWidth, m_nWindowHeight, 0, GL_RGB, GL_FLOAT, m_pfRaster);
+	
+
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, m_iWindowWidth, m_iWindowHeight, 0, GL_RED, GL_FLOAT, m_pfRaster);
 
 	glUniform1i(m_glnTextureID, 0);
 
@@ -102,16 +107,16 @@ void DLA::RenderNextElement()
 *********************************************************************************************/
 void	DLA::ItlInitialize()
 {
-	m_pfRaster = new float[m_nWindowWidth * m_nWindowHeight * 3];
-	for (unsigned int n = 0; n < m_nWindowWidth * m_nWindowHeight * 3; ++n)
-		m_pfRaster[n] = 0.0f;
+	m_pfRaster = new float[m_iWindowWidth * m_iWindowHeight];
+	for (int i = 0; i < m_iWindowWidth * m_iWindowHeight; ++i)
+		m_pfRaster[i] = 0.0f;
 
-	int iX = m_nWindowWidth / 2;
-	int iY = m_nWindowHeight / 2;
+	int iX = m_iWindowWidth / 2;
+	int iY = m_iWindowHeight / 2;
 
 
-	for (unsigned int n = 0; n < m_nWindowWidth; ++n)
-		ItlSetRasterValue(n, iY, 1.0f);
+	for (int i = 0; i < m_iWindowWidth; ++i)
+		ItlSetRasterValue(i, iY, 1.0f);
 
 	static const GLfloat glfVertexBufferData[] = {
 		-1.0f, -1.0f, 0.0f,
@@ -134,7 +139,7 @@ void	DLA::ItlInitialize()
 	glGenTextures(1, &m_glnTextureID);
 	glBindTexture(GL_TEXTURE_2D, m_glnTextureID);
 
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, m_nWindowWidth, m_nWindowHeight, 0, GL_RGB, GL_FLOAT, m_pfRaster);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, m_iWindowWidth, m_iWindowHeight, 0, GL_RED, GL_FLOAT, m_pfRaster);
 	
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
@@ -146,19 +151,19 @@ void	DLA::ItlInitialize()
 *********************************************************************************************/
 bool	DLA::ItlShouldBeDrawn(int iX, int iY)
 {
-	bool bShouldBeDrawn = m_pfRaster[iY * m_nWindowWidth * 3 + iX * 3] > 0;
+	bool bShouldBeDrawn = m_pfRaster[iY * m_iWindowWidth + iX] > 0;
 
 	if (!bShouldBeDrawn && iX > 0)
-		bShouldBeDrawn = m_pfRaster[iY * m_nWindowWidth * 3 + (iX - 1) * 3] > 0;
+		bShouldBeDrawn = m_pfRaster[iY * m_iWindowWidth + (iX - 1)] > 0;
 
-	if (!bShouldBeDrawn && iX < m_nWindowWidth - 1)
-		bShouldBeDrawn = m_pfRaster[iY * m_nWindowWidth * 3 + (iX + 1) * 3] > 0;
+	if (!bShouldBeDrawn && iX < m_iWindowWidth - 1)
+		bShouldBeDrawn = m_pfRaster[iY * m_iWindowWidth + (iX + 1)] > 0;
 
 	if (!bShouldBeDrawn && iY > 0)
-		bShouldBeDrawn = m_pfRaster[(iY - 1) * m_nWindowWidth * 3 + iX * 3] > 0;
+		bShouldBeDrawn = m_pfRaster[(iY - 1) * m_iWindowWidth + iX] > 0;
 
-	if (!bShouldBeDrawn && iY < m_nWindowHeight - 1)
-		bShouldBeDrawn = m_pfRaster[(iY + 1) * m_nWindowWidth * 3 + iX * 3] > 0;
+	if (!bShouldBeDrawn && iY < m_iWindowHeight - 1)
+		bShouldBeDrawn = m_pfRaster[(iY + 1) * m_iWindowWidth + iX] > 0;
 
 	return bShouldBeDrawn;
 }
@@ -245,11 +250,9 @@ void	DLA::ItlSetRasterValue(int iX, int iY, float fValue)
 {
 	assert(m_pfRaster != NULL);
 	assert(iX >= 0);
-	assert(iX < m_nWindowWidth);
+	assert(iX < m_iWindowWidth);
 	assert(iY >= 0);
-	assert(iY < m_nWindowHeight);
+	assert(iY < m_iWindowHeight);
 
-	m_pfRaster[iY * m_nWindowWidth * 3 + iX * 3] = fValue;
-	m_pfRaster[iY * m_nWindowWidth * 3 + iX * 3 + 1] = fValue;
-	m_pfRaster[iY * m_nWindowWidth * 3 + iX * 3 + 2] = fValue;
+	m_pfRaster[iY * m_iWindowWidth + iX] = fValue;
 }

@@ -4,7 +4,7 @@ class DLA
 {
 public:
 	/// Constructor
-	DLA(unsigned int nWindowWidth, unsigned int nWindowHeight);
+	DLA(int iWindowWidth, int iWindowHeight);
 
 	/// Destructor
 	~DLA();
@@ -26,8 +26,8 @@ private:
 	void	ItlSetRasterValue(int iX, int iY, float fValue);
 
 	/// Member variables
-	unsigned int m_nWindowWidth;
-	unsigned int m_nWindowHeight;
+	int m_iWindowWidth;
+	int m_iWindowHeight;
 
 	float		* m_pfRaster;
 
