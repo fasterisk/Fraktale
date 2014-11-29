@@ -47,7 +47,8 @@ int main()
 		exit(EXIT_FAILURE);
 	}
 
-	DLA stDLA(800, 800, DLA::START_REGION_SQUARE);
+	//DLA stDLA(100, 100, DLA::START_REGION_CIRCLE, 200000000, glm::ivec2(50, 50));
+	DLA stDLA(800, 800, DLA::START_REGION_CIRCLE, 2000000, glm::ivec2(400, 400), glm::ivec2(500, 500));
 	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 
 	bool bPaused = false;
