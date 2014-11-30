@@ -106,6 +106,12 @@ void	DLA::GetRenderedResolution(int & riResolutionX, int & riResolutionY) const
 *********************************************************************************************/
 void DLA::CalculateNextElement()
 {
+	//Check if we need to stop
+	if ((m_iv2StartRegionSize.x == m_iResolutionX - 1) &&
+		(m_iv2StartRegionSize.y == m_iResolutionY - 1) &&
+		((m_iv2CurDrawnMin.x == 0) || (m_iv2CurDrawnMin.y == 0) || (m_iv2CurDrawnMax.x == m_iResolutionX - 1) || m_iv2CurDrawnMax.y == m_iResolutionY - 1))
+		return;
+
 	//Create a point on the border of the region randomly
 	glm::ivec2 iv2Random;
 	bool bOk = ItlGetRandomPoint(iv2Random);
@@ -578,28 +584,28 @@ bool	DLA::ItlGetRandomPoint(glm::ivec2 & riv2RandomPoint)
 		switch (iRandom)
 		{
 		case UP:
-			if (m_iv2StartRegionMax.y < m_iResolutionY - 1)
+			//if (m_iv2StartRegionMax.y < m_iResolutionY - 1)
 			{
 				riv2RandomPoint.x = (rand() % m_iv2StartRegionSize.x);
 				riv2RandomPoint.y = m_iv2StartRegionSize.y;
 				break;
 			}
 		case RIGHT:
-			if (m_iv2StartRegionMax.x < m_iResolutionX - 1)
+			//if (m_iv2StartRegionMax.x < m_iResolutionX - 1)
 			{
 				riv2RandomPoint.x = m_iv2StartRegionSize.x;
 				riv2RandomPoint.y = (rand() % m_iv2StartRegionSize.y);
 				break;
 			}
 		case DOWN:
-			if (m_iv2StartRegionMin.y > 0)
+			//if (m_iv2StartRegionMin.y > 0)
 			{
 				riv2RandomPoint.x = (rand() % m_iv2StartRegionSize.x);
 				riv2RandomPoint.y = 0;
 				break;
 			}
 		case LEFT:
-			if (m_iv2StartRegionMin.x > 0)
+			//if (m_iv2StartRegionMin.x > 0)
 			{
 				riv2RandomPoint.x = 0;
 				riv2RandomPoint.y = (rand() % m_iv2StartRegionSize.y);
