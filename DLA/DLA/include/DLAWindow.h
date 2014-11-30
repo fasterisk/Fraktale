@@ -10,13 +10,22 @@ class DLAWindow : public QWidget
 	Q_OBJECT
 
 public:
-	/// CONSTRUCTION / DESTRUCTION
+/// CONSTRUCTION / DESTRUCTION
 
 	/// Constructor
 	DLAWindow();
 
 	/// Destructor
 	~DLAWindow();
+
+private slots:
+/// SLOTS
+	void ItlGoalRegionComboBoxChanged(int iComboBoxIndex);
+	void ItlStartRegionComboBoxChanged(int iComboBoxIndex);
+	void ItlResolutionChanged(int iNewResolution);
+
+
+
 
 private:
 	/// OBJECT MEMBERS

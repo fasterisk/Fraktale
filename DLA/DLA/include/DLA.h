@@ -9,11 +9,12 @@ class DLA : public QGLWidget
 {
 public:
 
-	// TYPES
+/// TYPES
 	enum TStartRegion
 	{
 		START_REGION_SQUARE,
 		START_REGION_CIRCLE,
+		START_REGION_LINE,
 
 		NUM_START_REGIONS
 	};
@@ -26,17 +27,14 @@ public:
 		NUM_GOAL_REGIONS
 	};
 
-	// CONSTRUCTION / DESTRUCTION
+/// CONSTRUCTION / DESTRUCTION
 	/// Constructor
-	DLA(int iResolutionX, int iResolutionY, TStartRegion eStartRegion, unsigned int nMaxSteps, glm::ivec2 iv2StartingPoint);
-
-	/// Constructor 2
-	DLA(int iResolutionX, int iResolutionY, TStartRegion eStartRegion, unsigned int nMaxSteps, glm::ivec2 iv2LinePoint1, glm::ivec2 iv2LinePoint2);
+	DLA(int iResolutionX, int iResolutionY, unsigned int nMaxSteps);
 
 	/// Destructor
 	~DLA();
 
-	// ACCESS
+/// ACCESS
 
 	/// Returns the start region type
 	TStartRegion	GetStartRegionType() const { return m_eStartRegion; }
@@ -45,7 +43,7 @@ public:
 	TGoalRegion		GetGoalRegionType() const { return m_eGoalRegion; }
 
 	/// Returns the current resolution of the rendering
-	void	GetRenderedResolution(int & riResolutionX, int & riResolutionY) const;
+	void	GetResolution(int & riResolutionX, int & riResolutionY) const;
 
 	/// Returns the current max steps
 	unsigned int	GetMaxSteps() const { return m_nMaxSteps; }
@@ -59,7 +57,15 @@ public:
 	/// Returns the second starting line point
 	glm::ivec2	GetStartingLinePoint2() const { return m_iv2LinePoint2; }
 
-	/// PUBLIC OPERATIONS
+/// PUBLIC OPERATIONS
+	/// Sets the start region type
+	void	SetStartRegionType(TStartRegion eStartRegion);
+
+	/// Sets the goal region type
+	void	SetGoalRegionType(TGoalRegion eGoalRegion);
+
+	/// Sets the resolution
+	void	SetResolution(int iResolutionX, int iResolutionY);
 
 	/// Calculates next element
 	void	CalculateNextElement();
@@ -70,13 +76,12 @@ public:
 	/// Resets the algorithm
 	void	Reset();
 
-	// IMPLEMENTED PUBLIC OPERATIONS OF QGLWidget
-
+/// IMPLEMENTED PUBLIC OPERATIONS OF QGLWidget
 	virtual QSize minimumSizeHint() const;
 	virtual QSize sizeHint() const;
 
 protected:
-	// IMPLEMENTED PROTECTED OPERATIONS OF QGLWidget
+/// IMPLEMENTED PROTECTED OPERATIONS OF QGLWidget
 	virtual void	initializeGL();
 	virtual void	paintGL();
 	virtual void	resizeGL(int width, int height);
@@ -91,19 +96,22 @@ private:
 	void	ItlInitializeShaderAndTextures();
 
 	/// Checks if the given position is in the raster, or a neighboring point is in the raster
-	bool	ItlShouldBeDrawn(int iX, int iY, float *& pfCurrentRasterArrayPoint);
+	bool	ItlShouldBeDrawn(int iX, int iY);
 
 	/// Loads the needed shaders
 	void	ItlLoadShaders();
 
 	/// Sets a value in the raster
-	void	ItlSetRasterValue(int iX, int iY, float *& pfCurrentRasterArrayValue, float fNewValue);
+	void	ItlSetRasterValue(int iX, int iY, float fNewValue);
+
+	/// Sets a value in the path raster
+	void	ItlSetValueInPathRaster(int iX, int iY, float fNewValue);
 
 	/// Returns a random point inside the start region
 	bool	ItlGetRandomPoint(glm::ivec2 & riv2RandomPoint);
 
 	/// Moves the given point inside the starting region
-	void	ItlMovePoint(glm::ivec2 &rPoint, float *& pfCurrentRasterArrayPoint);
+	void	ItlMovePoint(glm::ivec2 &rPoint);
 
 	/// Updates the size of the start region
 	void	ItlUpdateStartRegion(glm::ivec2 iv2LastDrawnPoint);
@@ -123,6 +131,8 @@ private:
 
 	float		* m_pfRaster;
 	float		* m_pfStartRegion;
+
+	float		* m_pfCurrentPathRaster;
 
 	GLuint	m_glnVertexArray;
 	GLuint	m_glnVertexBuffer;

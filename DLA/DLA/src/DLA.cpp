@@ -9,25 +9,32 @@
 
 /*********************************************************************************************
 *********************************************************************************************/
-DLA::DLA(int iResolutionX, int iResolutionY, DLA::TStartRegion eStartRegion, unsigned int nMaxSteps, glm::ivec2 iv2StartingPoint)
+DLA::DLA(int iResolutionX, int iResolutionY, unsigned int nMaxSteps)
 {
+	assert(iResolutionX > 0);
+	assert(iResolutionY > 0);
+
 	m_iResolutionX = iResolutionX;
 	m_iResolutionY = iResolutionY;
-	m_eStartRegion = eStartRegion;
+	m_eStartRegion = START_REGION_SQUARE;
 	m_nMaxSteps = nMaxSteps;
 	m_nNumDrawnPixels = 0;
-	m_nNumPixels = iResolutionY * m_iResolutionX / 20;
+	m_nNumPixels = iResolutionX * iResolutionY;
 
 	m_eGoalRegion = GOAL_REGION_POINT;
 
-	m_iv2StartingPoint = iv2StartingPoint;
-	ItlClampPointInsideArea(m_iv2StartingPoint);
+	m_iv2StartingPoint = glm::ivec2(m_iResolutionX / 2, m_iResolutionY / 2);
+
+	m_iv2LinePoint1 = glm::ivec2(m_iResolutionX * 1 / 3, m_iResolutionY / 2);
+	m_iv2LinePoint2 = glm::ivec2(m_iResolutionX * 2 / 3, m_iResolutionY / 2);
 
 	m_iv2CurDrawnMin = m_iv2StartingPoint;
 	m_iv2CurDrawnMax = m_iv2StartingPoint;
 
 	m_pfRaster = NULL;
 	m_pfStartRegion = NULL;
+
+	m_pfCurrentPathRaster = NULL;
 
 	m_iStartingRegionRadius = 10;
 
@@ -36,44 +43,6 @@ DLA::DLA(int iResolutionX, int iResolutionY, DLA::TStartRegion eStartRegion, uns
 	ItlUpdateStartRegion(m_iv2StartingPoint);
 
 	ItlInitializeRaster();
-}
-
-/*********************************************************************************************
-*********************************************************************************************/
-DLA::DLA(int iResolutionX, int iResolutionY, DLA::TStartRegion eStartRegion, unsigned int nMaxSteps, glm::ivec2 iv2LinePoint1, glm::ivec2 iv2LinePoint2)
-{
-	m_iResolutionX = iResolutionX;
-	m_iResolutionY = iResolutionY;
-	m_eStartRegion = eStartRegion;
-	m_nMaxSteps = nMaxSteps;
-	m_nNumDrawnPixels = 0;
-	m_nNumPixels = iResolutionY * iResolutionX / 20;
-
-	m_eGoalRegion = GOAL_REGION_LINE;
-
-	m_iv2LinePoint1 = iv2LinePoint1;
-	m_iv2LinePoint2 = iv2LinePoint2;
-	ItlClampPointInsideArea(m_iv2LinePoint1);
-	ItlClampPointInsideArea(m_iv2LinePoint2);
-
-	m_iv2CurDrawnMin.x = std::min(m_iv2LinePoint1.x, m_iv2LinePoint2.x);
-	m_iv2CurDrawnMin.y = std::min(m_iv2LinePoint1.y, m_iv2LinePoint2.y);
-	m_iv2CurDrawnMax.x = std::max(m_iv2LinePoint1.x, m_iv2LinePoint2.x);
-	m_iv2CurDrawnMax.y = std::max(m_iv2LinePoint1.y, m_iv2LinePoint2.y);
-
-	m_pfRaster = NULL;
-	m_pfStartRegion = NULL;
-
-	glm::ivec2 iv2Temp = m_iv2CurDrawnMax - m_iv2CurDrawnMin;
-	m_iStartingRegionRadius = std::max(std::abs(iv2Temp.x), std::abs(iv2Temp.y)) / 2 + 10;
-	m_iv2StartingPoint = (m_iv2CurDrawnMax + m_iv2CurDrawnMin) / 2;
-
-	srand(time(NULL));
-
-	ItlInitializeRaster();
-
-	ItlUpdateStartRegion(m_iv2LinePoint1);
-	ItlUpdateStartRegion(m_iv2LinePoint2);
 }
 
 /*********************************************************************************************
@@ -91,20 +60,59 @@ DLA::~DLA()
 		delete[] m_pfStartRegion;
 		m_pfStartRegion = NULL;
 	}
+
+	if (m_pfCurrentPathRaster != NULL)
+	{
+		delete[] m_pfCurrentPathRaster;
+		m_pfCurrentPathRaster = NULL;
+	}
 }
 
 /*********************************************************************************************
 *********************************************************************************************/
-void	DLA::GetRenderedResolution(int & riResolutionX, int & riResolutionY) const
+void	DLA::GetResolution(int & riResolutionX, int & riResolutionY) const
 {
 	riResolutionX = m_iResolutionX;
 	riResolutionY = m_iResolutionY;
 }
 
+/*********************************************************************************************
+*********************************************************************************************/
+void	DLA::SetStartRegionType(TStartRegion eStartRegion)
+{
+	if (eStartRegion != m_eStartRegion)
+	{
+		m_eStartRegion = eStartRegion;
+		Reset();
+	}
+}
 
 /*********************************************************************************************
 *********************************************************************************************/
-void DLA::CalculateNextElement()
+void	DLA::SetGoalRegionType(TGoalRegion eGoalRegion)
+{
+	if (eGoalRegion != m_eGoalRegion)
+	{
+		m_eGoalRegion = eGoalRegion;
+		Reset();
+	}
+}
+
+/*********************************************************************************************
+*********************************************************************************************/
+void	DLA::SetResolution(int iResolutionX, int iResolutionY)
+{
+	if (m_iResolutionX != iResolutionX || m_iResolutionY != iResolutionY)
+	{
+		m_iResolutionX = iResolutionX;
+		m_iResolutionY = iResolutionY;
+		Reset();
+	}
+}
+
+/*********************************************************************************************
+*********************************************************************************************/
+void	DLA::CalculateNextElement()
 {
 	//Check if we need to stop
 	if ((m_iv2StartRegionSize.x == m_iResolutionX - 1) &&
@@ -120,21 +128,20 @@ void DLA::CalculateNextElement()
 	{
 		bool bDraw = false;
 		unsigned int nSteps = 0;
-		float * fCurrentRasterArrayPoint = m_pfRaster + iv2Random.y * m_iResolutionX + iv2Random.x;
 
 		while (!bDraw && nSteps < m_nMaxSteps)
 		{
-			bDraw = ItlShouldBeDrawn(iv2Random.x, iv2Random.y, fCurrentRasterArrayPoint);
+			bDraw = ItlShouldBeDrawn(iv2Random.x, iv2Random.y);
 
 			if (!bDraw)
-				ItlMovePoint(iv2Random, fCurrentRasterArrayPoint);
+				ItlMovePoint(iv2Random);
 
 			nSteps++;
 		}
 
 		//DRAW
 		if (bDraw)
-			ItlSetRasterValue(iv2Random.x, iv2Random.y, fCurrentRasterArrayPoint, (float)m_nNumDrawnPixels);
+			ItlSetRasterValue(iv2Random.x, iv2Random.y, (float)m_nNumDrawnPixels);
 	}
 }
 
@@ -143,20 +150,35 @@ void DLA::CalculateNextElement()
 void DLA::Render()
 {
 	float * pTexture = new float[m_iResolutionX * m_iResolutionY * 3];
+
+	float * pCurrentTexture = pTexture;
+	float * pCurrentRaster = m_pfRaster;
+
+
 	for (int i = 0; i < m_iResolutionX * m_iResolutionY; ++i)
 	{
-		if (m_pfRaster[i] > 0.0f)
+
+		if ((*pCurrentRaster) > 0.0f)
 		{
-			pTexture[i * 3] = m_pfRaster[i] / (float)m_nNumDrawnPixels;
-			pTexture[i * 3 + 1] = ((float)m_nNumDrawnPixels - m_pfRaster[i]) / (float)m_nNumDrawnPixels;
-			pTexture[i * 3 + 2] = 0.0f;
+			(*pCurrentTexture) = (*pCurrentRaster) / (float)m_nNumDrawnPixels;
+			++pCurrentTexture;
+			(*pCurrentTexture) = ((float)m_nNumDrawnPixels - (*pCurrentRaster)) / (float)m_nNumDrawnPixels;
+			++pCurrentTexture;
+			(*pCurrentTexture) = 0.0f;
+			++pCurrentTexture;
 		}
 		else
 		{
-			pTexture[i * 3] = 0.0f;
-			pTexture[i * 3 + 1] = 0.0f;
-			pTexture[i * 3 + 2] = 0.0f;
+			(*pCurrentTexture) = 0.0f;
+			++pCurrentTexture;
+			(*pCurrentTexture) = 0.0f;
+			++pCurrentTexture;
+			(*pCurrentTexture) = 0.0f;
+			++pCurrentTexture;
 		}
+
+
+		++pCurrentRaster;
 
 	}
 
@@ -203,7 +225,22 @@ void DLA::Render()
 *********************************************************************************************/
 void	DLA::Reset()
 {
-	srand(time(NULL));
+	if (m_eStartRegion == START_REGION_LINE)
+	{
+		m_iv2StartingPoint = glm::vec2(m_iResolutionX / 2, 0);
+		m_iv2LinePoint1 = glm::vec2(0, 0);
+		m_iv2LinePoint2 = glm::vec2(m_iResolutionX, 0);
+	}
+	else
+	{
+		m_iv2StartingPoint = glm::vec2(m_iResolutionX / 2, m_iResolutionY / 2);
+		m_iv2LinePoint1 = glm::vec2(m_iResolutionX * 1/3,  m_iResolutionY / 2);
+		m_iv2LinePoint2 = glm::vec2(m_iResolutionX * 2/3, m_iResolutionY / 2);
+	}
+
+	ItlClampPointInsideArea(m_iv2StartingPoint);
+	ItlClampPointInsideArea(m_iv2LinePoint1);
+	ItlClampPointInsideArea(m_iv2LinePoint2);
 
 	m_nNumDrawnPixels = 0;
 	m_iv2CurDrawnMin = m_iv2StartingPoint;
@@ -238,14 +275,14 @@ void	DLA::Reset()
 *********************************************************************************************/
 QSize	DLA::minimumSizeHint() const
 {
-	return QSize(50, 50);
+	return QSize(400, 400);
 }
 
 /*********************************************************************************************
 *********************************************************************************************/
 QSize	DLA::sizeHint() const
 {
-	return QSize(400, 400);
+	return QSize(600, 600);
 }
 
 /*********************************************************************************************
@@ -308,14 +345,17 @@ void	DLA::ItlInitializeRaster()
 	}
 
 	m_pfRaster = new float[m_iResolutionX * m_iResolutionY];
+	float * pCurrentRasterPointer = m_pfRaster;
 	for (int i = 0; i < m_iResolutionX * m_iResolutionY; ++i)
-		m_pfRaster[i] = 0.0f;
+	{
+		(*pCurrentRasterPointer) = 0.0f;
+		++pCurrentRasterPointer;
+	}
 
 	if (m_eGoalRegion == GOAL_REGION_POINT)
 	{
 		m_nNumDrawnPixels = 1;
-		float * fPoint = m_pfRaster + m_iv2StartingPoint.y * m_iResolutionX + m_iv2StartingPoint.x;
-		ItlSetRasterValue(m_iv2StartingPoint.x, m_iv2StartingPoint.y, fPoint, (float)m_nNumDrawnPixels);
+		ItlSetRasterValue(m_iv2StartingPoint.x, m_iv2StartingPoint.y, (float)m_nNumDrawnPixels);
 	}
 	else
 	{
@@ -338,8 +378,7 @@ void	DLA::ItlInitializeRaster()
 
 			for (int i = iStart; i <= iEnd; ++i)
 			{
-				float * fPoint = m_pfRaster + i * m_iResolutionX + m_iv2LinePoint1.x;
-				ItlSetRasterValue(m_iv2LinePoint1.x, i, fPoint, 1.0f);
+				ItlSetRasterValue(m_iv2LinePoint1.x, i, 1.0f);
 			}
 		}
 		else
@@ -357,11 +396,9 @@ void	DLA::ItlInitializeRaster()
 			int err = dx + dy;
 			int e2;
 
-			float * fPoint = m_pfRaster + y0 * m_iResolutionX + x0;
-
 			for (;;)
 			{
-				ItlSetRasterValue(x0, y0, fPoint, 1.0f);
+				ItlSetRasterValue(x0, y0, 1.0f);
 				if (x0 == x1 && y0 == y1)
 					break;
 
@@ -370,14 +407,12 @@ void	DLA::ItlInitializeRaster()
 				{
 					err += dy;
 					x0 += sx;
-					fPoint += sx;
 				}
 
 				if (e2 < dx)
 				{
 					err += dx;
 					y0 += sy;
-					fPoint += sy * m_iResolutionX;
 				}
 			}
 		}
@@ -432,7 +467,7 @@ void	DLA::ItlInitializeShaderAndTextures()
 
 /*********************************************************************************************
 *********************************************************************************************/
-bool	DLA::ItlShouldBeDrawn(int iX, int iY, float *& pfCurrentRasterArrayPoint)
+bool	DLA::ItlShouldBeDrawn(int iX, int iY)
 {
 	assert(m_pfRaster != NULL);
 	assert(iX >= 0);
@@ -440,30 +475,26 @@ bool	DLA::ItlShouldBeDrawn(int iX, int iY, float *& pfCurrentRasterArrayPoint)
 	assert(iY >= 0);
 	assert(iY < m_iResolutionY);
 
-	bool bShouldBeDrawn = (*pfCurrentRasterArrayPoint) > 0;
+	bool bShouldBeDrawn = m_pfRaster[iY * m_iResolutionX + iX] > 0;
 
 	if (!bShouldBeDrawn && iX > 0)
 	{
-		float * fNewPoint = pfCurrentRasterArrayPoint - 1;
-		bShouldBeDrawn = (*fNewPoint) > 0;
+		bShouldBeDrawn = m_pfRaster[iY * m_iResolutionX + iX - 1] > 0;
 	}
 
 	if (!bShouldBeDrawn && iX < m_iResolutionX - 1)
 	{
-		float * fNewPoint = pfCurrentRasterArrayPoint + 1;
-		bShouldBeDrawn = (*fNewPoint) > 0;
+		bShouldBeDrawn = m_pfRaster[iY * m_iResolutionX + iX + 1] > 0;
 	}
 
 	if (!bShouldBeDrawn && iY > 0)
 	{
-		float * fNewPoint = pfCurrentRasterArrayPoint - m_iResolutionY;
-		bShouldBeDrawn = (*fNewPoint) > 0;
+		bShouldBeDrawn = m_pfRaster[(iY - 1) * m_iResolutionX + iX] > 0;
 	}
 
 	if (!bShouldBeDrawn && iY < m_iResolutionY - 1)
 	{
-		float * fNewPoint = pfCurrentRasterArrayPoint + m_iResolutionY;
-		bShouldBeDrawn = (*fNewPoint) > 0;
+		bShouldBeDrawn = m_pfRaster[(iY + 1) * m_iResolutionX + iX] > 0;
 	}
 
 	return bShouldBeDrawn;
@@ -548,7 +579,7 @@ void	DLA::ItlLoadShaders()
 
 /*********************************************************************************************
 *********************************************************************************************/
-void	DLA::ItlSetRasterValue(int iX, int iY, float *& pfCurrentRasterArrayValue, float fNewValue)
+void	DLA::ItlSetRasterValue(int iX, int iY, float fNewValue)
 {
 	assert(m_pfRaster != NULL);
 	assert(iX >= 0);
@@ -556,7 +587,7 @@ void	DLA::ItlSetRasterValue(int iX, int iY, float *& pfCurrentRasterArrayValue, 
 	assert(iY >= 0);
 	assert(iY < m_iResolutionY);
 
-	(*pfCurrentRasterArrayValue) = fNewValue;
+	m_pfRaster[iY * m_iResolutionX + iX] = fNewValue;
 
 	if (iX > m_iv2CurDrawnMax.x)
 		m_iv2CurDrawnMax.x = iX;
@@ -574,51 +605,55 @@ void	DLA::ItlSetRasterValue(int iX, int iY, float *& pfCurrentRasterArrayValue, 
 
 /*********************************************************************************************
 *********************************************************************************************/
+void	DLA::ItlSetValueInPathRaster(int iX, int iY, float fNewValue)
+{
+	assert(m_pfCurrentPathRaster != NULL);
+	assert(iX >= 0);
+	assert(iX < m_iResolutionX);
+	assert(iY >= 0);
+	assert(iY < m_iResolutionY);
+
+	m_pfCurrentPathRaster[iY * m_iResolutionX + iX] = fNewValue;
+}
+
+/*********************************************************************************************
+*********************************************************************************************/
 bool	DLA::ItlGetRandomPoint(glm::ivec2 & riv2RandomPoint)
 {
 	bool bOk = true;
 	if (m_eStartRegion == START_REGION_SQUARE)
 	{
-		int iRandom = rand() % 4;
+		int iSumStartingRegionSize = 2 * m_iv2StartRegionSize.x + 2 * m_iv2StartRegionSize.y;
+		int iRandom = rand() % iSumStartingRegionSize;
 
-		switch (iRandom)
-		{
-		case UP:
-			//if (m_iv2StartRegionMax.y < m_iResolutionY - 1)
+		if (iRandom < m_iv2StartRegionSize.x)
 		{
 			riv2RandomPoint.x = (rand() % m_iv2StartRegionSize.x);
 			riv2RandomPoint.y = m_iv2StartRegionSize.y;
-			break;
 		}
-		case RIGHT:
-			//if (m_iv2StartRegionMax.x < m_iResolutionX - 1)
+		else if (iRandom < m_iv2StartRegionSize.x + m_iv2StartRegionSize.y)
 		{
 			riv2RandomPoint.x = m_iv2StartRegionSize.x;
 			riv2RandomPoint.y = (rand() % m_iv2StartRegionSize.y);
-			break;
 		}
-		case DOWN:
-			//if (m_iv2StartRegionMin.y > 0)
+		else if (iRandom < m_iv2StartRegionSize.x + m_iv2StartRegionSize.y + m_iv2StartRegionSize.x)
 		{
 			riv2RandomPoint.x = (rand() % m_iv2StartRegionSize.x);
 			riv2RandomPoint.y = 0;
-			break;
 		}
-		case LEFT:
-			//if (m_iv2StartRegionMin.x > 0)
+		else if (iRandom < m_iv2StartRegionSize.x + m_iv2StartRegionSize.y + m_iv2StartRegionSize.x + m_iv2StartRegionSize.y)
 		{
 			riv2RandomPoint.x = 0;
 			riv2RandomPoint.y = (rand() % m_iv2StartRegionSize.y);
-			break;
 		}
-		default:
-			bOk = false;
-			break;
+		else
+		{
+			assert(!"should not happen!");
 		}
 
 		riv2RandomPoint += m_iv2StartRegionMin;
 	}
-	else// START_REGION_CIRCLE
+	else if(m_eStartRegion == START_REGION_CIRCLE)
 	{
 		bOk = false;
 		glm::ivec2 iv2Point(0, 0);
@@ -660,6 +695,11 @@ bool	DLA::ItlGetRandomPoint(glm::ivec2 & riv2RandomPoint)
 			} while (riv2RandomPoint.x < 0 || riv2RandomPoint.y < 0 || riv2RandomPoint.x >= m_iResolutionX || riv2RandomPoint.y >= m_iResolutionY);
 		}
 	}
+	else if (m_eStartRegion == START_REGION_LINE)
+	{
+		riv2RandomPoint.x = rand() % m_iResolutionX;
+		riv2RandomPoint.y = m_iv2StartRegionMax.y;
+	}
 
 	ItlClampPointInsideArea(riv2RandomPoint);
 
@@ -668,10 +708,8 @@ bool	DLA::ItlGetRandomPoint(glm::ivec2 & riv2RandomPoint)
 
 /*********************************************************************************************
 *********************************************************************************************/
-void	DLA::ItlMovePoint(glm::ivec2 &rPoint, float *& pfCurrentRasterArrayPoint)
+void	DLA::ItlMovePoint(glm::ivec2 &rPoint)
 {
-	glm::ivec2 v2PointBefore(rPoint);
-
 	if (m_eStartRegion == START_REGION_CIRCLE)
 	{
 		glm::ivec2 v2Point(rPoint);
@@ -718,7 +756,7 @@ void	DLA::ItlMovePoint(glm::ivec2 &rPoint, float *& pfCurrentRasterArrayPoint)
 			break;
 		}
 	}
-	else
+	else if (m_eStartRegion == START_REGION_SQUARE)
 	{
 		int iRandom = rand() % 4;
 		double dDist = 0.0;
@@ -749,13 +787,38 @@ void	DLA::ItlMovePoint(glm::ivec2 &rPoint, float *& pfCurrentRasterArrayPoint)
 			break;
 		}
 	}
+	else if (m_eStartRegion == START_REGION_LINE)
+	{
+		int iRandom = rand() % 4;
+
+		switch (iRandom)
+		{
+		case UP:
+			if (rPoint.y < m_iv2StartRegionMax.y)
+				rPoint.y++;
+			break;
+
+		case RIGHT:
+			if (rPoint.x < m_iResolutionX)
+				rPoint.x++;
+			break;
+
+		case DOWN:
+				rPoint.y--;
+			break;
+
+		case LEFT:
+			if (rPoint.x > 0)
+				rPoint.x--;
+			break;
+
+		default:
+			break;
+		}
+
+	}
 
 	ItlClampPointInsideArea(rPoint);
-
-	int iDiffX = rPoint.x - v2PointBefore.x;
-	int iDiffY = rPoint.y - v2PointBefore.y;
-
-	pfCurrentRasterArrayPoint += iDiffY * m_iResolutionX + iDiffX;
 }
 
 /*********************************************************************************************
@@ -799,7 +862,7 @@ void	DLA::ItlUpdateStartRegion(glm::ivec2 iv2LastDrawnPoint)
 			}
 		}
 	}
-	else // START_REGION_CIRCLE
+	else if (m_eStartRegion == START_REGION_CIRCLE)
 	{
 		glm::ivec2 iv2Point = iv2LastDrawnPoint - m_iv2StartingPoint;
 		double dDist = std::sqrt(std::pow(iv2Point.x, 2) + std::pow(iv2Point.y, 2));
@@ -834,6 +897,47 @@ void	DLA::ItlUpdateStartRegion(glm::ivec2 iv2LastDrawnPoint)
 					if (iRadius == m_iStartingRegionRadius)
 						m_pfStartRegion[y * m_iResolutionX + x] = 1.0f;
 				}
+			}
+		}
+	}
+	else if (m_eStartRegion == START_REGION_LINE)
+	{
+		int iMaxY = std::max(m_iv2CurDrawnMin.y, m_iv2CurDrawnMax.y);
+
+		m_iv2StartRegionMin.x = 0;
+		m_iv2StartRegionMin.y = iMaxY + 10;
+		m_iv2StartRegionMax.x = m_iResolutionX;
+		m_iv2StartRegionMax.y = iMaxY + 10;
+
+		ItlClampPointInsideArea(m_iv2StartRegionMin);
+		ItlClampPointInsideArea(m_iv2StartRegionMax);
+
+		m_iv2StartRegionSize = m_iv2StartRegionMax - m_iv2StartRegionMin;
+
+		if (m_pfStartRegion != NULL)
+		{
+			delete[] m_pfStartRegion;
+			m_pfStartRegion = NULL;
+		}
+
+		m_pfStartRegion = new float[m_iResolutionX * m_iResolutionY];
+		for (int x = 0; x < m_iResolutionX; ++x)
+		{
+			for (int y = 0; y < m_iResolutionY; ++y)
+			{
+				m_pfStartRegion[y * m_iResolutionX + x] = 0.0f;
+				if (x == m_iv2StartRegionMin.x || x == m_iv2StartRegionMax.x)
+				{
+					if (y >= m_iv2StartRegionMin.y && y <= m_iv2StartRegionMax.y)
+						m_pfStartRegion[y * m_iResolutionX + x] = 1.0f;
+				}
+
+				if (y == m_iv2StartRegionMin.y || y == m_iv2StartRegionMax.y)
+				{
+					if (x >= m_iv2StartRegionMin.x && x <= m_iv2StartRegionMax.x)
+						m_pfStartRegion[y * m_iResolutionX + x] = 1.0f;
+				}
+
 			}
 		}
 	}
