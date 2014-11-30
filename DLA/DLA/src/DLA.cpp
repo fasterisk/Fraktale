@@ -157,14 +157,14 @@ void DLA::Render()
 			pTexture[i * 3 + 1] = 0.0f;
 			pTexture[i * 3 + 2] = 0.0f;
 		}
-		
+
 	}
 
 	glUseProgram(m_glnShader);
 
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, m_glnRasterTexID);
-	
+
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, m_iResolutionX, m_iResolutionY, 0, GL_RGB, GL_FLOAT, pTexture);
 	//glTexSubImage2D(GL_TEXTURE_2D, 0, iv2Random.x, iv2Random.y, 1, 1, GL_RED, GL_FLOAT, &fValue);
 
@@ -310,7 +310,7 @@ void	DLA::ItlInitializeRaster()
 	m_pfRaster = new float[m_iResolutionX * m_iResolutionY];
 	for (int i = 0; i < m_iResolutionX * m_iResolutionY; ++i)
 		m_pfRaster[i] = 0.0f;
-	
+
 	if (m_eGoalRegion == GOAL_REGION_POINT)
 	{
 		m_nNumDrawnPixels = 1;
@@ -334,7 +334,7 @@ void	DLA::ItlInitializeRaster()
 		{
 			int iStart = std::min(m_iv2LinePoint1.y, m_iv2LinePoint2.y);
 			int iEnd = std::max(m_iv2LinePoint1.y, m_iv2LinePoint2.y);
-			
+
 
 			for (int i = iStart; i <= iEnd; ++i)
 			{
@@ -368,7 +368,7 @@ void	DLA::ItlInitializeRaster()
 				e2 = 2 * err;
 				if (e2 > dy)
 				{
-					err += dy; 
+					err += dy;
 					x0 += sx;
 					fPoint += sx;
 				}
@@ -381,10 +381,10 @@ void	DLA::ItlInitializeRaster()
 				}
 			}
 		}
-		
-		
+
+
 	}
-	
+
 }
 
 /*********************************************************************************************
@@ -557,12 +557,12 @@ void	DLA::ItlSetRasterValue(int iX, int iY, float *& pfCurrentRasterArrayValue, 
 	assert(iY < m_iResolutionY);
 
 	(*pfCurrentRasterArrayValue) = fNewValue;
-	
+
 	if (iX > m_iv2CurDrawnMax.x)
 		m_iv2CurDrawnMax.x = iX;
-	if(iX < m_iv2CurDrawnMin.x)
+	if (iX < m_iv2CurDrawnMin.x)
 		m_iv2CurDrawnMin.x = iX;
-	if(iY > m_iv2CurDrawnMax.y)
+	if (iY > m_iv2CurDrawnMax.y)
 		m_iv2CurDrawnMax.y = iY;
 	if (iY < m_iv2CurDrawnMin.y)
 		m_iv2CurDrawnMin.y = iY;
@@ -585,32 +585,32 @@ bool	DLA::ItlGetRandomPoint(glm::ivec2 & riv2RandomPoint)
 		{
 		case UP:
 			//if (m_iv2StartRegionMax.y < m_iResolutionY - 1)
-			{
-				riv2RandomPoint.x = (rand() % m_iv2StartRegionSize.x);
-				riv2RandomPoint.y = m_iv2StartRegionSize.y;
-				break;
-			}
+		{
+			riv2RandomPoint.x = (rand() % m_iv2StartRegionSize.x);
+			riv2RandomPoint.y = m_iv2StartRegionSize.y;
+			break;
+		}
 		case RIGHT:
 			//if (m_iv2StartRegionMax.x < m_iResolutionX - 1)
-			{
-				riv2RandomPoint.x = m_iv2StartRegionSize.x;
-				riv2RandomPoint.y = (rand() % m_iv2StartRegionSize.y);
-				break;
-			}
+		{
+			riv2RandomPoint.x = m_iv2StartRegionSize.x;
+			riv2RandomPoint.y = (rand() % m_iv2StartRegionSize.y);
+			break;
+		}
 		case DOWN:
 			//if (m_iv2StartRegionMin.y > 0)
-			{
-				riv2RandomPoint.x = (rand() % m_iv2StartRegionSize.x);
-				riv2RandomPoint.y = 0;
-				break;
-			}
+		{
+			riv2RandomPoint.x = (rand() % m_iv2StartRegionSize.x);
+			riv2RandomPoint.y = 0;
+			break;
+		}
 		case LEFT:
 			//if (m_iv2StartRegionMin.x > 0)
-			{
-				riv2RandomPoint.x = 0;
-				riv2RandomPoint.y = (rand() % m_iv2StartRegionSize.y);
-				break;
-			}
+		{
+			riv2RandomPoint.x = 0;
+			riv2RandomPoint.y = (rand() % m_iv2StartRegionSize.y);
+			break;
+		}
 		default:
 			bOk = false;
 			break;
@@ -660,7 +660,7 @@ bool	DLA::ItlGetRandomPoint(glm::ivec2 & riv2RandomPoint)
 			} while (riv2RandomPoint.x < 0 || riv2RandomPoint.y < 0 || riv2RandomPoint.x >= m_iResolutionX || riv2RandomPoint.y >= m_iResolutionY);
 		}
 	}
-	
+
 	ItlClampPointInsideArea(riv2RandomPoint);
 
 	return bOk;
@@ -795,7 +795,7 @@ void	DLA::ItlUpdateStartRegion(glm::ivec2 iv2LastDrawnPoint)
 					if (x >= m_iv2StartRegionMin.x && x <= m_iv2StartRegionMax.x)
 						m_pfStartRegion[y * m_iResolutionX + x] = 1.0f;
 				}
-				
+
 			}
 		}
 	}
@@ -807,7 +807,7 @@ void	DLA::ItlUpdateStartRegion(glm::ivec2 iv2LastDrawnPoint)
 		while (dDist > (m_iStartingRegionRadius - 10))
 			m_iStartingRegionRadius++;
 
-		
+
 		m_iv2StartRegionMin = m_iv2StartingPoint - m_iStartingRegionRadius;
 		m_iv2StartRegionMax = m_iv2StartingPoint + m_iStartingRegionRadius;
 

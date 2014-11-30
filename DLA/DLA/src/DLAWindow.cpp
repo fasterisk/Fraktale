@@ -1,5 +1,5 @@
 #include "DLAWindow.h"
-#include "Qt\QtWidgets\qboxlayout.h"
+#include <qboxlayout.h>
 
 /*********************************************************************************************
 *********************************************************************************************/
@@ -9,8 +9,9 @@ DLAWindow::DLAWindow()
 
 	QHBoxLayout * pLayout = new QHBoxLayout;
 	pLayout->addWidget(m_pDLA);
+	m_pDLA->show();
 
-	
+
 	setLayout(pLayout);
 	setWindowTitle("DLA");
 }

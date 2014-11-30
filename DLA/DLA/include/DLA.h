@@ -3,12 +3,13 @@
 
 
 #include "CommonIncludes.h"
-#include "Qt/QtOpenGL/qgl.h"
+#include <qgl.h>
 
 class DLA : public QGLWidget
 {
 public:
-// TYPES
+
+	// TYPES
 	enum TStartRegion
 	{
 		START_REGION_SQUARE,
@@ -25,7 +26,7 @@ public:
 		NUM_GOAL_REGIONS
 	};
 
-// CONSTRUCTION / DESTRUCTION
+	// CONSTRUCTION / DESTRUCTION
 	/// Constructor
 	DLA(int iResolutionX, int iResolutionY, TStartRegion eStartRegion, unsigned int nMaxSteps, glm::ivec2 iv2StartingPoint);
 
@@ -35,7 +36,7 @@ public:
 	/// Destructor
 	~DLA();
 
-// ACCESS
+	// ACCESS
 
 	/// Returns the start region type
 	TStartRegion	GetStartRegionType() const { return m_eStartRegion; }
@@ -58,8 +59,8 @@ public:
 	/// Returns the second starting line point
 	glm::ivec2	GetStartingLinePoint2() const { return m_iv2LinePoint2; }
 
-/// PUBLIC OPERATIONS
-	
+	/// PUBLIC OPERATIONS
+
 	/// Calculates next element
 	void	CalculateNextElement();
 
@@ -69,13 +70,13 @@ public:
 	/// Resets the algorithm
 	void	Reset();
 
-// IMPLEMENTED PUBLIC OPERATIONS OF QGLWidget
+	// IMPLEMENTED PUBLIC OPERATIONS OF QGLWidget
 
 	virtual QSize minimumSizeHint() const;
 	virtual QSize sizeHint() const;
 
 protected:
-// IMPLEMENTED PROTECTED OPERATIONS OF QGLWidget
+	// IMPLEMENTED PROTECTED OPERATIONS OF QGLWidget
 	virtual void	initializeGL();
 	virtual void	paintGL();
 	virtual void	resizeGL(int width, int height);
@@ -109,7 +110,7 @@ private:
 
 	/// Clamps the given point inside the drawing area
 	void	ItlClampPointInsideArea(glm::ivec2 & riv2Point);
-	
+
 
 	/// Member variables
 	int m_iResolutionX;
@@ -154,7 +155,7 @@ private:
 	int m_iStartingRegionRadius;
 
 
-	
+
 };
 
 #endif //_DLA_H_

@@ -29,16 +29,10 @@ local.properties
 .buildpath
 
 # LIBS
-Fraktale/Fraktale/lib
+*.lib
 
 # DLLS
 *.dll
-
-# Library includes
-Fraktale/Fraktale/include/GL
-Fraktale/Fraktale/include/GLFW
-Fraktale/Fraktale/include/glm
-Fraktale/Fraktale/include/Qt
 
 
 #################

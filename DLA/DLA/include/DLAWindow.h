@@ -3,13 +3,15 @@
 
 #include "CommonIncludes.h"
 #include "DLA.h"
-#include "Qt\QtWidgets\qwidget.h"
+#include <qwidget.h>
 
 class DLAWindow : public QWidget
 {
+	Q_OBJECT
+
 public:
-/// CONSTRUCTION / DESTRUCTION
-	
+	/// CONSTRUCTION / DESTRUCTION
+
 	/// Constructor
 	DLAWindow();
 
@@ -17,10 +19,10 @@ public:
 	~DLAWindow();
 
 private:
-/// OBJECT MEMBERS
+	/// OBJECT MEMBERS
 
 	DLA *	m_pDLA;
-	
+
 
 };
 
