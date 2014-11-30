@@ -1,4 +1,5 @@
 #include "DLA.h"
+#include <qevent.h>
 #include <time.h>
 #include <algorithm>
 
@@ -9,7 +10,8 @@
 
 /*********************************************************************************************
 *********************************************************************************************/
-DLA::DLA(int iResolutionX, int iResolutionY, unsigned int nMaxSteps)
+DLA::DLA(int iResolutionX, int iResolutionY, unsigned int nMaxSteps, QWidget * pParent)
+	: QGLWidget(pParent)
 {
 	assert(iResolutionX > 0);
 	assert(iResolutionY > 0);
@@ -37,6 +39,10 @@ DLA::DLA(int iResolutionX, int iResolutionY, unsigned int nMaxSteps)
 	m_pfCurrentPathRaster = NULL;
 
 	m_iStartingRegionRadius = 10;
+
+	m_bPaused = false;
+
+	m_bShowPath = false;
 
 	srand(time(NULL));
 
@@ -112,8 +118,18 @@ void	DLA::SetResolution(int iResolutionX, int iResolutionY)
 
 /*********************************************************************************************
 *********************************************************************************************/
+void	DLA::SetShowPath(bool bShow)
+{
+	m_bShowPath = bShow;
+}
+
+/*********************************************************************************************
+*********************************************************************************************/
 void	DLA::CalculateNextElement()
 {
+	//Reset the path
+	ItlResetPath();
+
 	//Check if we need to stop
 	if ((m_iv2StartRegionSize.x == m_iResolutionX - 1) &&
 		(m_iv2StartRegionSize.y == m_iResolutionY - 1) &&
@@ -136,6 +152,9 @@ void	DLA::CalculateNextElement()
 			if (!bDraw)
 				ItlMovePoint(iv2Random);
 
+			if (m_bShowPath)
+				ItlSetValueInPathRaster(iv2Random.x, iv2Random.y, 1.0f);
+
 			nSteps++;
 		}
 
@@ -152,53 +171,66 @@ void DLA::Render()
 	float * pTexture = new float[m_iResolutionX * m_iResolutionY * 3];
 
 	float * pCurrentTexture = pTexture;
-	float * pCurrentRaster = m_pfRaster;
+	float * pCurrentRasterPointer = m_pfRaster;
+	float * pCurrentStartRegionPointer = m_pfStartRegion;
+	float * pCurrentPathPointer = m_pfCurrentPathRaster;
 
 
 	for (int i = 0; i < m_iResolutionX * m_iResolutionY; ++i)
 	{
 
-		if ((*pCurrentRaster) > 0.0f)
+		if ((*pCurrentRasterPointer) > 0.0f)
 		{
-			(*pCurrentTexture) = (*pCurrentRaster) / (float)m_nNumDrawnPixels;
+			(*pCurrentTexture) = (*pCurrentRasterPointer) / (float)m_nNumDrawnPixels;
 			++pCurrentTexture;
-			(*pCurrentTexture) = ((float)m_nNumDrawnPixels - (*pCurrentRaster)) / (float)m_nNumDrawnPixels;
+			(*pCurrentTexture) = ((float)m_nNumDrawnPixels - (*pCurrentRasterPointer)) / (float)m_nNumDrawnPixels;
 			++pCurrentTexture;
 			(*pCurrentTexture) = 0.0f;
 			++pCurrentTexture;
 		}
 		else
 		{
-			(*pCurrentTexture) = 0.0f;
+			(*pCurrentTexture) = (*pCurrentStartRegionPointer);
 			++pCurrentTexture;
-			(*pCurrentTexture) = 0.0f;
+			(*pCurrentTexture) = (*pCurrentStartRegionPointer);
 			++pCurrentTexture;
-			(*pCurrentTexture) = 0.0f;
+			(*pCurrentTexture) = (*pCurrentStartRegionPointer) + (*pCurrentPathPointer);
 			++pCurrentTexture;
 		}
 
 
-		++pCurrentRaster;
+		++pCurrentRasterPointer;
+		++pCurrentStartRegionPointer;
+		++pCurrentPathPointer;
 
 	}
 
 	glUseProgram(m_glnShader);
 
+	//Raster texture
 	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, m_glnRasterTexID);
+	glBindTexture(GL_TEXTURE_2D, m_glnTexID);
 
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, m_iResolutionX, m_iResolutionY, 0, GL_RGB, GL_FLOAT, pTexture);
-	//glTexSubImage2D(GL_TEXTURE_2D, 0, iv2Random.x, iv2Random.y, 1, 1, GL_RED, GL_FLOAT, &fValue);
 
-	glUniform1i(m_glnRasterTexID, 0);
+	glUniform1i(m_glnTexLoc, 0);
 
-	glActiveTexture(GL_TEXTURE1);
+	//Starting region texture
+	/*glActiveTexture(GL_TEXTURE1);
 	glBindTexture(GL_TEXTURE_2D, m_glnStartingRegionTexID);
 
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, m_iResolutionX, m_iResolutionY, 0, GL_RED, GL_FLOAT, m_pfStartRegion);
-	//glTexSubImage2D(GL_TEXTURE_2D, 0, iv2Random.x, iv2Random.y, 1, 1, GL_RED, GL_FLOAT, &fValue);
 
-	glUniform1i(m_glnRasterTexID, 1);
+	glUniform1i(m_glnStartingRegionTexID, 1);
+
+	//Path texture
+	glActiveTexture(GL_TEXTURE2);
+	glBindTexture(GL_TEXTURE_2D, m_glnPathTexID);
+
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, m_iResolutionX, m_iResolutionY, 0, GL_RED, GL_FLOAT, m_pfCurrentPathRaster);
+
+	glUniform1i(m_glnPathTexID, 2);*/
+
 
 	glEnableVertexAttribArray(0);
 	glBindBuffer(GL_ARRAY_BUFFER, m_glnVertexBuffer);
@@ -258,6 +290,12 @@ void	DLA::Reset()
 		m_pfStartRegion = NULL;
 	}
 
+	if (m_pfCurrentPathRaster != NULL)
+	{
+		delete[] m_pfCurrentPathRaster;
+		m_pfCurrentPathRaster = NULL;
+	}
+
 	m_iStartingRegionRadius = 10;
 
 	if (m_eGoalRegion == GOAL_REGION_POINT)
@@ -306,7 +344,8 @@ void	DLA::paintGL()
 	// Clear the screen
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-	CalculateNextElement();
+	if (!m_bPaused)
+		CalculateNextElement();
 
 	Render();
 
@@ -346,6 +385,20 @@ void	DLA::ItlInitializeRaster()
 
 	m_pfRaster = new float[m_iResolutionX * m_iResolutionY];
 	float * pCurrentRasterPointer = m_pfRaster;
+	for (int i = 0; i < m_iResolutionX * m_iResolutionY; ++i)
+	{
+		(*pCurrentRasterPointer) = 0.0f;
+		++pCurrentRasterPointer;
+	}
+
+	if (m_pfCurrentPathRaster != NULL)
+	{
+		delete[] m_pfCurrentPathRaster;
+		m_pfCurrentPathRaster = NULL;
+	}
+
+	m_pfCurrentPathRaster = new float[m_iResolutionX * m_iResolutionY];
+	pCurrentRasterPointer = m_pfCurrentPathRaster;
 	for (int i = 0; i < m_iResolutionX * m_iResolutionY; ++i)
 	{
 		(*pCurrentRasterPointer) = 0.0f;
@@ -445,8 +498,9 @@ void	DLA::ItlInitializeShaderAndTextures()
 	glBufferData(GL_ARRAY_BUFFER, sizeof(glfVertexBufferData), glfVertexBufferData, GL_STATIC_DRAW);
 
 	// Raster texture
-	glGenTextures(1, &m_glnRasterTexID);
-	glBindTexture(GL_TEXTURE_2D, m_glnRasterTexID);
+	glActiveTexture(GL_TEXTURE0);
+	glGenTextures(1, &m_glnTexID);
+	glBindTexture(GL_TEXTURE_2D, m_glnTexID);
 
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, m_iResolutionX, m_iResolutionY, 0, GL_RED, GL_FLOAT, m_pfRaster);
 
@@ -454,6 +508,7 @@ void	DLA::ItlInitializeShaderAndTextures()
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 
 	// Starting region texture
+	/*glActiveTexture(GL_TEXTURE1);
 	glGenTextures(1, &m_glnStartingRegionTexID);
 	glBindTexture(GL_TEXTURE_2D, m_glnStartingRegionTexID);
 
@@ -461,6 +516,16 @@ void	DLA::ItlInitializeShaderAndTextures()
 
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+
+	// Path texture
+	glActiveTexture(GL_TEXTURE2);
+	glGenTextures(1, &m_glnPathTexID);
+	glBindTexture(GL_TEXTURE_2D, m_glnPathTexID);
+
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, m_iResolutionX, m_iResolutionY, 0, GL_RED, GL_FLOAT, m_pfCurrentPathRaster);
+
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);*/
 
 	ItlLoadShaders();
 }
@@ -573,8 +638,9 @@ void	DLA::ItlLoadShaders()
 	glDeleteShader(glnVertexShaderID);
 	glDeleteShader(glnFragmentShaderID);
 
-	m_glnRasterTexLoc = glGetUniformLocation(m_glnShader, "tRasterTexture");
-	m_glnStartingRegionTexLoc = glGetUniformLocation(m_glnShader, "tStartingRegionTexture");
+	m_glnTexLoc = glGetUniformLocation(m_glnShader, "tTexture");
+	//m_glnStartingRegionTexLoc = glGetUniformLocation(m_glnShader, "tStartingRegionTexture");
+	//m_glnPathTexLoc = glGetUniformLocation(m_glnShader, "tPathTexture");
 }
 
 /*********************************************************************************************
@@ -955,4 +1021,19 @@ void	DLA::ItlClampPointInsideArea(glm::ivec2 & riv2Point)
 		riv2Point.y = 0;
 	if (riv2Point.y >= m_iResolutionY)
 		riv2Point.y = m_iResolutionY - 1;
+}
+
+/*********************************************************************************************
+*********************************************************************************************/
+void	DLA::ItlResetPath()
+{
+	assert(m_pfCurrentPathRaster != NULL);
+
+	float * pfCurrentPointer = m_pfCurrentPathRaster;
+
+	for (int i = 0; i < m_iResolutionX * m_iResolutionY; ++i)
+	{
+		(*pfCurrentPointer) = 0.0f;
+		++pfCurrentPointer;
+	}
 }

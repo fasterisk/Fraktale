@@ -29,7 +29,7 @@ public:
 
 /// CONSTRUCTION / DESTRUCTION
 	/// Constructor
-	DLA(int iResolutionX, int iResolutionY, unsigned int nMaxSteps);
+	DLA(int iResolutionX, int iResolutionY, unsigned int nMaxSteps, QWidget * pParent = NULL);
 
 	/// Destructor
 	~DLA();
@@ -57,6 +57,9 @@ public:
 	/// Returns the second starting line point
 	glm::ivec2	GetStartingLinePoint2() const { return m_iv2LinePoint2; }
 
+	/// Returns whether DLA is paused or not
+	bool	IsPaused() const { return m_bPaused;  }
+
 /// PUBLIC OPERATIONS
 	/// Sets the start region type
 	void	SetStartRegionType(TStartRegion eStartRegion);
@@ -66,6 +69,12 @@ public:
 
 	/// Sets the resolution
 	void	SetResolution(int iResolutionX, int iResolutionY);
+
+	/// Sets whether the path should be drawn or not
+	void	SetShowPath(bool bShow);
+
+	/// Pauses / unpauses DLA
+	void	SetPaused(bool bPaused) { m_bPaused = bPaused;  }
 
 	/// Calculates next element
 	void	CalculateNextElement();
@@ -119,6 +128,9 @@ private:
 	/// Clamps the given point inside the drawing area
 	void	ItlClampPointInsideArea(glm::ivec2 & riv2Point);
 
+	/// Resets the path raster
+	void	ItlResetPath();
+
 
 	/// Member variables
 	int m_iResolutionX;
@@ -137,13 +149,11 @@ private:
 	GLuint	m_glnVertexArray;
 	GLuint	m_glnVertexBuffer;
 
-	GLuint	m_glnRasterTexID;
-	GLuint	m_glnStartingRegionTexID;
+	GLuint	m_glnTexID;
 
 	GLuint	m_glnShader;
 
-	GLuint	m_glnRasterTexLoc;
-	GLuint	m_glnStartingRegionTexLoc;
+	GLuint	m_glnTexLoc;
 
 	TStartRegion m_eStartRegion;
 	TGoalRegion m_eGoalRegion;
@@ -163,6 +173,11 @@ private:
 
 	// Variables for a circle starting region
 	int m_iStartingRegionRadius;
+
+	// Variables for pausing
+	bool	m_bPaused;
+
+	bool	m_bShowPath;
 
 
 

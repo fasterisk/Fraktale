@@ -3,10 +3,13 @@
 #include <qcombobox.h>
 #include <qlabel.h>
 #include <qspinbox.h>
+#include <qcheckbox.h>
+#include <qpushbutton.h>
 
 /*********************************************************************************************
 *********************************************************************************************/
-DLAWindow::DLAWindow()
+DLAWindow::DLAWindow(QWidget * pParent)
+	: QWidget(pParent)
 {
 
 	QGridLayout * pGrid = new QGridLayout;
@@ -49,11 +52,26 @@ DLAWindow::DLAWindow()
 
 	nRow++;
 
+	//Create a check button if the path should be displayed
+	QCheckBox * pPathShouldBeDisplayedCheckBox = new QCheckBox("Display path");
+	pPathShouldBeDisplayedCheckBox->setChecked(false);
+	//Add it to the grid
+	pGrid->addWidget(pPathShouldBeDisplayedCheckBox, nRow, 1, 1, 2);
+
+	nRow++;
+
+	//Create a button for pausing
+	QPushButton * pPauseButton = new QPushButton("Pause / unpause");
+	//Add it to the grid
+	pGrid->addWidget(pPauseButton, nRow, 1, 1, 2);
+
+	nRow++;
+
 	//Create the DLA GL Widget
-	m_pDLA = new DLA(600, 600, 200000000);
+	m_pDLA = new DLA(600, 600, 200000000, this);
 	m_pDLA->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
 	//Add it to the grid
-	pGrid->addWidget(m_pDLA, 0, 0, nRow, 1);
+	pGrid->addWidget(m_pDLA, 0, 0, nRow+10, 1);
 
 
 	//Set the layout and the window title
@@ -64,6 +82,8 @@ DLAWindow::DLAWindow()
 	//connect(pResolutionSpinBox, SIGNAL(valueChanged(int)), SLOT(ItlResolutionChanged(int)));
 	connect(pGoalRegionTypeComboBox, SIGNAL(currentIndexChanged(int)), this, SLOT(ItlGoalRegionComboBoxChanged(int)));
 	connect(pStartRegionTypeComboBox, SIGNAL(currentIndexChanged(int)), this, SLOT(ItlStartRegionComboBoxChanged(int)));
+	connect(pPathShouldBeDisplayedCheckBox, SIGNAL(toggled(bool)), this, SLOT(ItlPathShouldBeDisplayedCheckBoxToggled(bool)));
+	connect(pPauseButton, SIGNAL(pressed()), this, SLOT(ItlPauseButtonPressed()));
 }
 
 /*********************************************************************************************
@@ -103,3 +123,21 @@ void	DLAWindow::ItlResolutionChanged(int iNewResolution)
 	m_pDLA->SetResolution(iNewResolution, iNewResolution);
 }
 
+/*********************************************************************************************
+*********************************************************************************************/
+void	DLAWindow::ItlPathShouldBeDisplayedCheckBoxToggled(bool bChecked)
+{
+	m_pDLA->SetShowPath(bChecked);
+}
+
+/*********************************************************************************************
+*********************************************************************************************/
+void	DLAWindow::ItlPauseButtonPressed()
+{
+	m_pDLA->SetPaused(!m_pDLA->IsPaused());
+
+	if (m_pDLA->IsPaused())
+		setWindowTitle("DLA (paused)");
+	else
+		setWindowTitle("DLA");
+}

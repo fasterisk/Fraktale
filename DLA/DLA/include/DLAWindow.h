@@ -13,7 +13,7 @@ public:
 /// CONSTRUCTION / DESTRUCTION
 
 	/// Constructor
-	DLAWindow();
+	DLAWindow(QWidget * pParent = NULL);
 
 	/// Destructor
 	~DLAWindow();
@@ -23,9 +23,8 @@ private slots:
 	void ItlGoalRegionComboBoxChanged(int iComboBoxIndex);
 	void ItlStartRegionComboBoxChanged(int iComboBoxIndex);
 	void ItlResolutionChanged(int iNewResolution);
-
-
-
+	void ItlPathShouldBeDisplayedCheckBoxToggled(bool bChecked);
+	void ItlPauseButtonPressed();
 
 private:
 	/// OBJECT MEMBERS
