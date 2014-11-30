@@ -22,6 +22,7 @@ DLA::DLA(int iResolutionX, int iResolutionY, unsigned int nMaxSteps, QWidget * p
 	m_nMaxSteps = nMaxSteps;
 	m_nNumDrawnPixels = 0;
 	m_nNumPixels = iResolutionX * iResolutionY;
+	m_nCurrentPathLength = 0;
 
 	m_eGoalRegion = GOAL_REGION_POINT;
 
@@ -125,6 +126,18 @@ void	DLA::SetShowPath(bool bShow)
 
 /*********************************************************************************************
 *********************************************************************************************/
+void	DLA::SetMaxNumSteps(int iNumSteps)
+{
+	assert(iNumSteps > 0);
+	if (m_nMaxSteps != iNumSteps)
+	{
+		m_nMaxSteps = iNumSteps;
+		Reset();
+	}
+}
+
+/*********************************************************************************************
+*********************************************************************************************/
 void	DLA::CalculateNextElement()
 {
 	//Reset the path
@@ -153,7 +166,7 @@ void	DLA::CalculateNextElement()
 				ItlMovePoint(iv2Random);
 
 			if (m_bShowPath)
-				ItlSetValueInPathRaster(iv2Random.x, iv2Random.y, 1.0f);
+				ItlSetValueInPathRaster(iv2Random.x, iv2Random.y);
 
 			nSteps++;
 		}
@@ -188,13 +201,31 @@ void DLA::Render()
 			(*pCurrentTexture) = 0.0f;
 			++pCurrentTexture;
 		}
-		else
+		else if ((*pCurrentPathPointer) > 0.0f)
+		{
+			(*pCurrentTexture) = (*pCurrentPathPointer) / (float)m_nCurrentPathLength;
+			++pCurrentTexture;
+			(*pCurrentTexture) = (*pCurrentPathPointer) / (float)m_nCurrentPathLength;
+			++pCurrentTexture;
+			(*pCurrentTexture) = 1.0f;
+			++pCurrentTexture;
+		}
+		else if ((*pCurrentStartRegionPointer) > 0.0f)
 		{
 			(*pCurrentTexture) = (*pCurrentStartRegionPointer);
 			++pCurrentTexture;
 			(*pCurrentTexture) = (*pCurrentStartRegionPointer);
 			++pCurrentTexture;
-			(*pCurrentTexture) = (*pCurrentStartRegionPointer) + (*pCurrentPathPointer);
+			(*pCurrentTexture) = (*pCurrentStartRegionPointer);
+			++pCurrentTexture;
+		}
+		else
+		{
+			(*pCurrentTexture) = 0.0f;
+			++pCurrentTexture;
+			(*pCurrentTexture) = 0.0f;
+			++pCurrentTexture;
+			(*pCurrentTexture) = 0.0f;
 			++pCurrentTexture;
 		}
 
@@ -671,7 +702,7 @@ void	DLA::ItlSetRasterValue(int iX, int iY, float fNewValue)
 
 /*********************************************************************************************
 *********************************************************************************************/
-void	DLA::ItlSetValueInPathRaster(int iX, int iY, float fNewValue)
+void	DLA::ItlSetValueInPathRaster(int iX, int iY)
 {
 	assert(m_pfCurrentPathRaster != NULL);
 	assert(iX >= 0);
@@ -679,7 +710,9 @@ void	DLA::ItlSetValueInPathRaster(int iX, int iY, float fNewValue)
 	assert(iY >= 0);
 	assert(iY < m_iResolutionY);
 
-	m_pfCurrentPathRaster[iY * m_iResolutionX + iX] = fNewValue;
+
+
+	m_pfCurrentPathRaster[iY * m_iResolutionX + iX] = (float)++m_nCurrentPathLength;
 }
 
 /*********************************************************************************************
@@ -870,6 +903,7 @@ void	DLA::ItlMovePoint(glm::ivec2 &rPoint)
 			break;
 
 		case DOWN:
+			if (rPoint.y > 0)
 				rPoint.y--;
 			break;
 
@@ -1028,6 +1062,8 @@ void	DLA::ItlClampPointInsideArea(glm::ivec2 & riv2Point)
 void	DLA::ItlResetPath()
 {
 	assert(m_pfCurrentPathRaster != NULL);
+
+	m_nCurrentPathLength = 0;
 
 	float * pfCurrentPointer = m_pfCurrentPathRaster;
 

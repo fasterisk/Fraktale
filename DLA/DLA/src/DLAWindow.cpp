@@ -19,18 +19,6 @@ DLAWindow::DLAWindow(QWidget * pParent)
 
 	unsigned int nRow = 0;
 
-	//Create a label for the resolution
-	/*pGrid->addWidget(new QLabel("Resolution:"), nRow, 1);
-	//Create a spin box for the resolution:
-	QSpinBox * pResolutionSpinBox = new QSpinBox;
-	pResolutionSpinBox->setMinimum(50);
-	pResolutionSpinBox->setMaximum(4096);
-	pResolutionSpinBox->setValue(600);
-	//Add it to the grid
-	pGrid->addWidget(pResolutionSpinBox, nRow, 2);*/
-
-	//nRow++;
-
 	//Create a combo box for the global region type
 	QComboBox * pGoalRegionTypeComboBox = new QComboBox();
 	pGoalRegionTypeComboBox->insertItem(0, "Point");
@@ -49,6 +37,17 @@ DLAWindow::DLAWindow(QWidget * pParent)
 	//Add it to the grid
 	pGrid->addWidget(new QLabel("Start region type:"), nRow, 1, 1, 1);
 	pGrid->addWidget(pStartRegionTypeComboBox, nRow, 2, 1, 1);
+
+	nRow++;
+
+	//Create a spin box for the maximal number of steps
+	pGrid->addWidget(new QLabel("Maximal number of steps:"), nRow, 1);
+	QSpinBox * pMaxNumberStepsSpinBox = new QSpinBox;
+	pMaxNumberStepsSpinBox->setMinimum(1);
+	pMaxNumberStepsSpinBox->setMaximum(999999999);
+	pMaxNumberStepsSpinBox->setValue(100000);
+	//Add it to the grid
+	pGrid->addWidget(pMaxNumberStepsSpinBox, nRow, 2);
 
 	nRow++;
 
@@ -79,7 +78,7 @@ DLAWindow::DLAWindow(QWidget * pParent)
 	setWindowTitle("DLA");
 
 	//Connect the signals
-	//connect(pResolutionSpinBox, SIGNAL(valueChanged(int)), SLOT(ItlResolutionChanged(int)));
+	connect(pMaxNumberStepsSpinBox, SIGNAL(valueChanged(int)), SLOT(ItlMaxNumStepsChanged(int)));
 	connect(pGoalRegionTypeComboBox, SIGNAL(currentIndexChanged(int)), this, SLOT(ItlGoalRegionComboBoxChanged(int)));
 	connect(pStartRegionTypeComboBox, SIGNAL(currentIndexChanged(int)), this, SLOT(ItlStartRegionComboBoxChanged(int)));
 	connect(pPathShouldBeDisplayedCheckBox, SIGNAL(toggled(bool)), this, SLOT(ItlPathShouldBeDisplayedCheckBoxToggled(bool)));
@@ -117,10 +116,9 @@ void	DLAWindow::ItlStartRegionComboBoxChanged(int iComboBoxIndex)
 
 /*********************************************************************************************
 *********************************************************************************************/
-void	DLAWindow::ItlResolutionChanged(int iNewResolution)
+void	DLAWindow::ItlMaxNumStepsChanged(int iNewMaxNumSteps)
 {
-
-	m_pDLA->SetResolution(iNewResolution, iNewResolution);
+	m_pDLA->SetMaxNumSteps(iNewMaxNumSteps);
 }
 
 /*********************************************************************************************

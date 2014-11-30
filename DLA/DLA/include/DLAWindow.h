@@ -22,7 +22,7 @@ private slots:
 /// SLOTS
 	void ItlGoalRegionComboBoxChanged(int iComboBoxIndex);
 	void ItlStartRegionComboBoxChanged(int iComboBoxIndex);
-	void ItlResolutionChanged(int iNewResolution);
+	void ItlMaxNumStepsChanged(int iNewMaxNumSteps);
 	void ItlPathShouldBeDisplayedCheckBoxToggled(bool bChecked);
 	void ItlPauseButtonPressed();
 

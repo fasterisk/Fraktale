@@ -76,6 +76,9 @@ public:
 	/// Pauses / unpauses DLA
 	void	SetPaused(bool bPaused) { m_bPaused = bPaused;  }
 
+	/// Sets the maximal number of steps
+	void	SetMaxNumSteps(int iNumSteps);
+
 	/// Calculates next element
 	void	CalculateNextElement();
 
@@ -114,7 +117,7 @@ private:
 	void	ItlSetRasterValue(int iX, int iY, float fNewValue);
 
 	/// Sets a value in the path raster
-	void	ItlSetValueInPathRaster(int iX, int iY, float fNewValue);
+	void	ItlSetValueInPathRaster(int iX, int iY);
 
 	/// Returns a random point inside the start region
 	bool	ItlGetRandomPoint(glm::ivec2 & riv2RandomPoint);
@@ -140,6 +143,8 @@ private:
 
 	unsigned int m_nNumDrawnPixels;
 	unsigned int m_nNumPixels;
+
+	unsigned int m_nCurrentPathLength;
 
 	float		* m_pfRaster;
 	float		* m_pfStartRegion;
