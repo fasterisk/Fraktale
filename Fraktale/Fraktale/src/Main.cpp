@@ -1,5 +1,6 @@
 #include "CommonIncludes.h"
-#include "DLA.h"
+#include <Qt/QtWidgets/qapplication.h>
+#include "DLAWindow.h"
 
 /*********************************************************************************************
 *********************************************************************************************/
@@ -10,10 +11,19 @@ void MyGLFWErrorCallback(int error, const char* description)
 
 /*********************************************************************************************
 *********************************************************************************************/
-int main()
+int main(int argc, char **argv)
 {
+	QApplication app(argc, argv);
+	
+	DLAWindow stDLAWindow;
+	stDLAWindow.resize(stDLAWindow.sizeHint());
+
+	stDLAWindow.show();
+
+	return app.exec();
+
 	// Set glfw error callback
-	glfwSetErrorCallback(MyGLFWErrorCallback);
+	/*glfwSetErrorCallback(MyGLFWErrorCallback);
 
 	// Initialize GLFW
 	if (!glfwInit())
@@ -99,7 +109,7 @@ int main()
 	glfwDestroyWindow(pWindow);
 	glfwTerminate();
 	exit(EXIT_SUCCESS);
-
-	return 0;
+	*/
+	return app.exec();
 }
 
