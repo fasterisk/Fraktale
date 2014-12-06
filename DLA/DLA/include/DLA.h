@@ -60,6 +60,12 @@ public:
 	/// Returns whether DLA is paused or not
 	bool	IsPaused() const { return m_bPaused;  }
 
+	/// Returns the likelihood for all directions
+	void	GetLikelihood(float & rfLikelihoodLeft, float & rfLikelihoodRight, float & rfLikelihoodUp, float & rfLikelihoodDown)
+	{
+		rfLikelihoodLeft = m_fLikelihoodLeft; rfLikelihoodRight = m_fLikelihoodRight; rfLikelihoodUp = m_fLikelihoodUp; rfLikelihoodDown = m_fLikelihoodDown;
+	}
+
 /// PUBLIC OPERATIONS
 	/// Sets the start region type
 	void	SetStartRegionType(TStartRegion eStartRegion);
@@ -87,6 +93,19 @@ public:
 
 	/// Resets the algorithm
 	void	Reset();
+
+	/// Sets the left likelihood
+	void	SetLikelihoodLeft(float fLikelihood);
+
+	/// Sets the right likelihood
+	void	SetLikelihoodRight(float fLikelihood);
+
+	/// Sets the Up likelihood
+	void	SetLikelihoodUp(float fLikelihood);
+
+	/// Sets the down likelihood
+	void	SetLikelihoodDown(float fLikelihood);
+
 
 /// IMPLEMENTED PUBLIC OPERATIONS OF QGLWidget
 	virtual QSize minimumSizeHint() const;
@@ -185,7 +204,11 @@ private:
 	bool	m_bShowPath;
 
 
-
+	// Variables for the likelihood
+	float	m_fLikelihoodLeft;
+	float	m_fLikelihoodRight;
+	float	m_fLikelihoodUp;
+	float	m_fLikelihoodDown;
 };
 
 #endif //_DLA_H_

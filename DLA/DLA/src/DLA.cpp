@@ -45,6 +45,11 @@ DLA::DLA(int iResolutionX, int iResolutionY, unsigned int nMaxSteps, QWidget * p
 
 	m_bShowPath = false;
 
+	m_fLikelihoodLeft = 0.25f;
+	m_fLikelihoodRight = 0.25f;
+	m_fLikelihoodUp = 0.25f;
+	m_fLikelihoodDown = 0.25f;
+
 	srand(time(NULL));
 
 	ItlUpdateStartRegion(m_iv2StartingPoint);
@@ -132,7 +137,6 @@ void	DLA::SetMaxNumSteps(int iNumSteps)
 	if (m_nMaxSteps != iNumSteps)
 	{
 		m_nMaxSteps = iNumSteps;
-		Reset();
 	}
 }
 
@@ -338,6 +342,124 @@ void	DLA::Reset()
 	}
 
 	ItlInitializeRaster();
+}
+
+
+/*********************************************************************************************
+*********************************************************************************************/
+void	DLA::SetLikelihoodLeft(float fLikelihood)
+{
+	float fRestBefore = 1.0f - m_fLikelihoodLeft;
+	float fRestNow = 1.0f - fLikelihood;
+
+	m_fLikelihoodLeft = fLikelihood;
+
+	if (fRestBefore > 0.0f && fRestNow > 0.0f)
+	{
+		m_fLikelihoodDown = (m_fLikelihoodDown / fRestBefore) * fRestNow;
+		m_fLikelihoodUp = (m_fLikelihoodUp / fRestBefore) * fRestNow;
+		m_fLikelihoodRight = fRestNow - m_fLikelihoodDown - m_fLikelihoodUp;
+	}
+	else if (fRestBefore == 0.0f)
+	{
+		m_fLikelihoodDown = fRestNow / 3.0f;
+		m_fLikelihoodUp = fRestNow / 3.0f;
+		m_fLikelihoodRight = fRestNow - m_fLikelihoodDown - m_fLikelihoodUp;
+	}
+	else // fRestNow == 0.0f
+	{
+		m_fLikelihoodDown = 0.0f;
+		m_fLikelihoodUp = 0.0f;
+		m_fLikelihoodRight = 0.0f;
+	}
+
+}
+
+/*********************************************************************************************
+*********************************************************************************************/
+void	DLA::SetLikelihoodRight(float fLikelihood)
+{
+	float fRestBefore = 1.0f - m_fLikelihoodRight;
+	float fRestNow = 1.0f - fLikelihood;
+
+	m_fLikelihoodRight = fLikelihood;
+
+	if (fRestBefore > 0.0f && fRestNow > 0.0f)
+	{
+		m_fLikelihoodDown = (m_fLikelihoodDown / fRestBefore) * fRestNow;
+		m_fLikelihoodUp = (m_fLikelihoodUp / fRestBefore) * fRestNow;
+		m_fLikelihoodLeft = fRestNow - m_fLikelihoodDown - m_fLikelihoodUp;
+	}
+	else if (fRestBefore == 0.0f)
+	{
+		m_fLikelihoodDown = fRestNow / 3.0f;
+		m_fLikelihoodUp = fRestNow / 3.0f;
+		m_fLikelihoodLeft = fRestNow - m_fLikelihoodDown - m_fLikelihoodUp;
+	}
+	else // fRestNow == 0.0f
+	{
+		m_fLikelihoodDown = 0.0f;
+		m_fLikelihoodUp = 0.0f;
+		m_fLikelihoodLeft = 0.0f;
+	}
+}
+
+/*********************************************************************************************
+*********************************************************************************************/
+void	DLA::SetLikelihoodUp(float fLikelihood)
+{
+	float fRestBefore = 1.0f - m_fLikelihoodUp;
+	float fRestNow = 1.0f - fLikelihood;
+
+	m_fLikelihoodUp = fLikelihood;
+
+	if (fRestBefore > 0.0f && fRestNow > 0.0f)
+	{
+		m_fLikelihoodDown = (m_fLikelihoodDown / fRestBefore) * fRestNow;
+		m_fLikelihoodLeft = (m_fLikelihoodLeft / fRestBefore) * fRestNow;
+		m_fLikelihoodRight = fRestNow - m_fLikelihoodDown - m_fLikelihoodLeft;
+	}
+	else if (fRestBefore == 0.0f)
+	{
+		m_fLikelihoodDown = fRestNow / 3.0f;
+		m_fLikelihoodLeft = fRestNow / 3.0f;
+		m_fLikelihoodRight = fRestNow - m_fLikelihoodDown - m_fLikelihoodLeft;
+	}
+	else // fRestNow == 0.0f
+	{
+		m_fLikelihoodDown = 0.0f;
+		m_fLikelihoodLeft = 0.0f;
+		m_fLikelihoodRight = 0.0f;
+	}
+}
+
+/*********************************************************************************************
+*********************************************************************************************/
+void	DLA::SetLikelihoodDown(float fLikelihood)
+{
+	float fRestBefore = 1.0f - m_fLikelihoodDown;
+	float fRestNow = 1.0f - fLikelihood;
+
+	m_fLikelihoodDown = fLikelihood;
+
+	if (fRestBefore > 0.0f && fRestNow > 0.0f)
+	{
+		m_fLikelihoodLeft = (m_fLikelihoodLeft / fRestBefore) * fRestNow;
+		m_fLikelihoodUp = (m_fLikelihoodUp / fRestBefore) * fRestNow;
+		m_fLikelihoodRight = fRestNow - m_fLikelihoodLeft - m_fLikelihoodUp;
+	}
+	else if (fRestBefore == 0.0f)
+	{
+		m_fLikelihoodLeft = fRestNow / 3.0f;
+		m_fLikelihoodUp = fRestNow / 3.0f;
+		m_fLikelihoodRight = fRestNow - m_fLikelihoodLeft - m_fLikelihoodUp;
+	}
+	else // fRestNow == 0.0f
+	{
+		m_fLikelihoodLeft = 0.0f;
+		m_fLikelihoodUp = 0.0f;
+		m_fLikelihoodRight = 0.0f;
+	}
 }
 
 /*********************************************************************************************
@@ -809,111 +931,112 @@ bool	DLA::ItlGetRandomPoint(glm::ivec2 & riv2RandomPoint)
 *********************************************************************************************/
 void	DLA::ItlMovePoint(glm::ivec2 &rPoint)
 {
+	int iLeft = m_fLikelihoodLeft * 100;
+	int iRight = iLeft + m_fLikelihoodRight * 100;
+	int iUp = iRight + m_fLikelihoodUp * 100;
+	int iDown = 100;
+
+	int iRandom = rand() % 100;
+
 	if (m_eStartRegion == START_REGION_CIRCLE)
 	{
 		glm::ivec2 v2Point(rPoint);
 		v2Point -= m_iv2StartingPoint;
 
-		int iRandom = rand() % 4;
 		double dDist = 0.0;
 
-		switch (iRandom)
+		if (iRandom <= iLeft)
 		{
-		case UP:
-			v2Point.y++;
-			dDist = std::sqrt(std::pow(v2Point.x, 2) + std::pow(v2Point.y, 2));
-
-			if (dDist < m_iStartingRegionRadius)
-				rPoint.y++;
-			break;
-
-		case RIGHT:
-			v2Point.x++;
-			dDist = std::sqrt(std::pow(v2Point.x, 2) + std::pow(v2Point.y, 2));
-
-			if (dDist < m_iStartingRegionRadius)
-				rPoint.x++;
-			break;
-
-		case DOWN:
-			v2Point.y--;
-			dDist = std::sqrt(std::pow(v2Point.x, 2) + std::pow(v2Point.y, 2));
-
-			if (dDist < m_iStartingRegionRadius)
-				rPoint.y--;
-			break;
-
-		case LEFT:
+			//LEFT
 			v2Point.x--;
 			dDist = std::sqrt(std::pow(v2Point.x, 2) + std::pow(v2Point.y, 2));
 
 			if (dDist < m_iStartingRegionRadius)
 				rPoint.x--;
-			break;
+			
+		}
+		else if (iRandom <= iRight)
+		{
+			//RIGHT
+			v2Point.x++;
+			dDist = std::sqrt(std::pow(v2Point.x, 2) + std::pow(v2Point.y, 2));
 
-		default:
-			break;
+			if (dDist < m_iStartingRegionRadius)
+				rPoint.x++;
+		}
+		else if (iRandom <= iUp)
+		{
+			//UP
+			v2Point.y++;
+			dDist = std::sqrt(std::pow(v2Point.x, 2) + std::pow(v2Point.y, 2));
+
+			if (dDist < m_iStartingRegionRadius)
+				rPoint.y++;
+		}
+		else 
+		{
+			//DOWN
+			v2Point.y--;
+			dDist = std::sqrt(std::pow(v2Point.x, 2) + std::pow(v2Point.y, 2));
+
+			if (dDist < m_iStartingRegionRadius)
+				rPoint.y--;
 		}
 	}
 	else if (m_eStartRegion == START_REGION_SQUARE)
 	{
-		int iRandom = rand() % 4;
-		double dDist = 0.0;
-
-		switch (iRandom)
+		if (iRandom <= iLeft)
 		{
-		case UP:
-			if (rPoint.y < m_iv2StartRegionMax.y)
-				rPoint.y++;
-			break;
-
-		case RIGHT:
-			if (rPoint.x < m_iv2StartRegionMax.x)
-				rPoint.x++;
-			break;
-
-		case DOWN:
-			if (rPoint.y > m_iv2StartRegionMin.y)
-				rPoint.y--;
-			break;
-
-		case LEFT:
+			//LEFT
 			if (rPoint.x > m_iv2StartRegionMin.x)
 				rPoint.x--;
-			break;
 
-		default:
-			break;
+		}
+		else if (iRandom <= iRight)
+		{
+			//RIGHT
+			if (rPoint.x < m_iv2StartRegionMax.x)
+				rPoint.x++;
+		}
+		else if (iRandom <= iUp)
+		{
+			//UP
+			if (rPoint.y < m_iv2StartRegionMax.y)
+				rPoint.y++;
+		}
+		else
+		{
+			//DOWN
+			if (rPoint.y > m_iv2StartRegionMin.y)
+				rPoint.y--;
 		}
 	}
 	else if (m_eStartRegion == START_REGION_LINE)
 	{
-		int iRandom = rand() % 4;
-
-		switch (iRandom)
+		if (iRandom <= iLeft)
 		{
-		case UP:
-			if (rPoint.y < m_iv2StartRegionMax.y)
-				rPoint.y++;
-			break;
-
-		case RIGHT:
-			if (rPoint.x < m_iResolutionX)
-				rPoint.x++;
-			break;
-
-		case DOWN:
-			if (rPoint.y > 0)
-				rPoint.y--;
-			break;
-
-		case LEFT:
+			//LEFT
 			if (rPoint.x > 0)
 				rPoint.x--;
-			break;
 
-		default:
-			break;
+		}
+		else if (iRandom <= iRight)
+		{
+			//RIGHT
+			if (rPoint.x < m_iResolutionX)
+				rPoint.x++;
+		}
+		else if (iRandom <= iUp)
+		{
+			//UP
+			if (rPoint.y < m_iv2StartRegionMax.y)
+				rPoint.y++;
+		}
+		else
+		{
+			//DOWN
+			if (rPoint.y > 0)
+				rPoint.y--;
 		}
 
 	}
