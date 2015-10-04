@@ -5,13 +5,13 @@ uniform float fScale;
 uniform vec2 v2Offset;
 uniform sampler1D tLookupTable;
 
-in vec2 v2f_v2TexCoords;
+in vec2 v2f_v2C;
 
 out vec4 color;
 
 void main(void)
 {
-	vec2 c = v2f_v2TexCoords.xy;
+	vec2 c = v2f_v2C.xy;
 	c = c * fScale + v2Offset;
 
 	vec2 z = vec2(0.0, 0.0);

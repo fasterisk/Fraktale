@@ -98,5 +98,11 @@
     <None Include="shader\Julia.frag">
       <Filter>Shader\FRAGMENT</Filter>
     </None>
+    <None Include="shader\TextureToScreen.vert">
+      <Filter>Shader\VERTEX</Filter>
+    </None>
+    <None Include="shader\TextureToScreen.frag">
+      <Filter>Shader\FRAGMENT</Filter>
+    </None>
   </ItemGroup>
 </Project>

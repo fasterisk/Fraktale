@@ -57,6 +57,8 @@
     <None Include="shader\Julia.vert" />
     <None Include="shader\Mandelbrot.frag" />
     <None Include="shader\Mandelbrot.vert" />
+    <None Include="shader\TextureToScreen.frag" />
+    <None Include="shader\TextureToScreen.vert" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{B12702AD-ABFB-343A-A199-8E24837244A3}</ProjectGuid>
