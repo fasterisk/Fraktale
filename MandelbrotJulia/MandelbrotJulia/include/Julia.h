@@ -97,16 +97,20 @@ private:
 	GLuint	m_glnVertexArray;
 	GLuint	m_glnVertexBuffer;
 
+	GLuint	m_glnFBO;
 	GLuint	m_glnRenderTexture;
 	GLuint	m_glnTransferFunctionTexture;
 
-	GLuint	m_glnShader;
+	GLuint	m_glnJuliaShader;
+	GLuint	m_glnTextureToScreenShader;
 
-	GLint	m_gliMaxIterationsLoc;
-	GLint	m_gliLookupTableLoc;
-	GLint	m_gliScaleLoc;
-	GLint	m_gliOffsetLoc;
-	GLint	m_gliComplexLoc;
+	GLint	m_gliJMaxIterationsLoc;
+	GLint	m_gliJLookupTableLoc;
+	GLint	m_gliJScaleLoc;
+	GLint	m_gliJOffsetLoc;
+	GLint	m_gliJComplexLoc;
+
+	GLint	m_gliTTSInputTextureLoc;
 
 	ITransferFunction * m_pTransferFunction;
 };

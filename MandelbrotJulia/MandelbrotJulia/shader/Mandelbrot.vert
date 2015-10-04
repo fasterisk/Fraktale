@@ -1,4 +1,5 @@
 #version 330
+precision highp float;
 
 layout(location=0) in vec3 in_v3Vertex;
 

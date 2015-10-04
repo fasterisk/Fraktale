@@ -53,6 +53,8 @@
     </CustomBuild>
   </ItemGroup>
   <ItemGroup>
+    <None Include="shader\GaussianSmoothing.frag" />
+    <None Include="shader\GaussianSmoothing.vert" />
     <None Include="shader\Julia.frag" />
     <None Include="shader\Julia.vert" />
     <None Include="shader\Mandelbrot.frag" />

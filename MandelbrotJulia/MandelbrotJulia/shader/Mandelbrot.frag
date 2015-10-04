@@ -1,4 +1,5 @@
 #version 330
+precision highp float;
 
 uniform float fMaxIterations;
 uniform float fScale;

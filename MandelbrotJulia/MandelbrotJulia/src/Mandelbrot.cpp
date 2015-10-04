@@ -92,6 +92,9 @@ void	Mandelbrot::SetScale(float fScale)
 *********************************************************************************************/
 void Mandelbrot::Render()
 {
+	///////////////////////////////////////////////////////////////////////////////////
+	//Render mandelbrot
+	///////////////////////////////////////////////////////////////////////////////////
 	glViewport(0, 0, m_iResolutionX * SUPERSAMPLING, m_iResolutionY * SUPERSAMPLING);
 	glUseProgram(m_glnMandelbrotShader);
 
@@ -122,6 +125,10 @@ void Mandelbrot::Render()
 	glDisableVertexAttribArray(0);
 
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+	///////////////////////////////////////////////////////////////////////////////////
+	// Render to screen
+	///////////////////////////////////////////////////////////////////////////////////
 
 	glViewport(0, 0, m_iResolutionX, m_iResolutionY);
 
@@ -297,9 +304,7 @@ void	Mandelbrot::ItlInitializeShaderAndTextures()
 
 	glBufferData(GL_ARRAY_BUFFER, sizeof(glfVertexBufferData), glfVertexBufferData, GL_STATIC_DRAW);
 
-	/// Supersample texture
-
-	//Generate frame buffer and texture
+	/// Supersample textures
 	glGenFramebuffers(1, &m_glnFBO);
 	glGenTextures(1, &m_glnRenderTexture);
 
@@ -316,6 +321,7 @@ void	Mandelbrot::ItlInitializeShaderAndTextures()
 	assert(glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE);
 
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
 
 	//Transfer function texture
 	glEnable(GL_TEXTURE_1D);

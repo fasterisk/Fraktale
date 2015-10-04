@@ -104,5 +104,11 @@
     <None Include="shader\TextureToScreen.frag">
       <Filter>Shader\FRAGMENT</Filter>
     </None>
+    <None Include="shader\GaussianSmoothing.vert">
+      <Filter>Shader\VERTEX</Filter>
+    </None>
+    <None Include="shader\GaussianSmoothing.frag">
+      <Filter>Shader\FRAGMENT</Filter>
+    </None>
   </ItemGroup>
 </Project>

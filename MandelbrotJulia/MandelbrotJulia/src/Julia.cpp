@@ -8,6 +8,8 @@
 #define DOWN 2
 #define LEFT 3
 
+#define SUPERSAMPLING 2
+
 /*********************************************************************************************
 *********************************************************************************************/
 Julia::Julia(int iResolutionX, int iResolutionY, unsigned int nMaxIterations, QWidget * pParent)
@@ -87,7 +89,11 @@ void	Julia::SetScale(float fScale)
 *********************************************************************************************/
 void Julia::Render()
 {
-	glUseProgram(m_glnShader);
+
+	glViewport(0, 0, m_iResolutionX * SUPERSAMPLING, m_iResolutionY * SUPERSAMPLING);
+	glUseProgram(m_glnJuliaShader);
+
+	glBindFramebuffer(GL_FRAMEBUFFER, m_glnFBO);
 
 	glEnableVertexAttribArray(0);
 	glBindBuffer(GL_ARRAY_BUFFER, m_glnVertexBuffer);
@@ -100,15 +106,41 @@ void Julia::Render()
 		(void*)0            // array buffer offset
 		);
 
+
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_1D, m_glnTransferFunctionTexture);
-	glUniform1d(m_gliLookupTableLoc, GL_TEXTURE0);
-	glUniform1f(m_gliMaxIterationsLoc, (float)m_nMaxIterations);
-	glUniform1f(m_gliScaleLoc, m_fScale);
-	glUniform2f(m_gliOffsetLoc, m_fOffsetX, m_fOffsetY);
-	glUniform2f(m_gliComplexLoc, m_fComplexReal, m_fComplexImag);
+	glUniform1d(m_gliJLookupTableLoc, GL_TEXTURE0);
+	glUniform1f(m_gliJMaxIterationsLoc, (float)m_nMaxIterations);
+	glUniform1f(m_gliJScaleLoc, m_fScale);
+	glUniform2f(m_gliJOffsetLoc, m_fOffsetX, m_fOffsetY);
+	glUniform2f(m_gliJComplexLoc, m_fComplexReal, m_fComplexImag);
 
-	// Draw the triangle !
+	// Draw the triangles !
+	glDrawArrays(GL_TRIANGLES, 0, 6);
+
+	glDisableVertexAttribArray(0);
+
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+	glViewport(0, 0, m_iResolutionX, m_iResolutionY);
+
+	glUseProgram(m_glnTextureToScreenShader);
+	glEnableVertexAttribArray(0);
+	glBindBuffer(GL_ARRAY_BUFFER, m_glnVertexBuffer);
+	glVertexAttribPointer(
+		0,                  // attribute. No particular reason for 0, but must match the layout in the shader.
+		3,                  // size
+		GL_FLOAT,           // type
+		GL_FALSE,           // normalized?
+		0,                  // stride
+		(void*)0            // array buffer offset
+		);
+
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, m_glnRenderTexture);
+	glUniform1d(m_gliTTSInputTextureLoc, GL_TEXTURE0);
+
+	// Draw the triangles !
 	glDrawArrays(GL_TRIANGLES, 0, 6);
 
 	glDisableVertexAttribArray(0);
@@ -237,44 +269,25 @@ void	Julia::ItlInitializeShaderAndTextures()
 
 	glBufferData(GL_ARRAY_BUFFER, sizeof(glfVertexBufferData), glfVertexBufferData, GL_STATIC_DRAW);
 
-	/// Ping-pong textures
+	/// Supersample texture
 
-	//Generate frame buffers and textures
-	/*glGenFramebuffers(2, m_glnPingPongFramebuffers);
-	glGenTextures(2, m_glnPingPongTextures);
+	//Generate frame buffer and texture
+	glGenFramebuffers(1, &m_glnFBO);
+	glGenTextures(1, &m_glnRenderTexture);
 
-	//Ping pong 1
-	glBindFramebuffer(GL_FRAMEBUFFER, m_glnPingPongFramebuffers[0]);
-	glBindTexture(GL_TEXTURE_2D, m_glnPingPongTextures[0]);
+	glBindFramebuffer(GL_FRAMEBUFFER, m_glnFBO);
+	glBindTexture(GL_TEXTURE_2D, m_glnRenderTexture);
 
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, m_iResolutionX, m_iResolutionY, 0, GL_RGBA, GL_FLOAT, NULL);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, m_iResolutionX * SUPERSAMPLING, m_iResolutionY * SUPERSAMPLING, 0, GL_RGBA, GL_FLOAT, NULL);
 
-	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, m_glnPingPongTextures[0], 0);
-
-	//GLenum gleDrawBuffers[1] = { GL_COLOR_ATTACHMENT0 };
-	//glDrawBuffers(1, gleDrawBuffers);
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, m_glnRenderTexture, 0);
 
 	assert(glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE);
 
-	//Ping pong 2
-	glBindFramebuffer(GL_FRAMEBUFFER, m_glnPingPongFramebuffers[1]);
-	glBindTexture(GL_TEXTURE_2D, m_glnPingPongTextures[1]);
-
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, m_iResolutionX, m_iResolutionY, 0, GL_RGBA, GL_FLOAT, NULL);
-
-	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, m_glnPingPongTextures[1], 0);
-
-	//glDrawBuffers(1, gleDrawBuffers);
-
-	assert(glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE);
-
-	glBindFramebuffer(GL_FRAMEBUFFER, 0);*/
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
 	//Transfer function texture
 	glEnable(GL_TEXTURE_1D);
@@ -296,26 +309,15 @@ void	Julia::ItlInitializeShaderAndTextures()
 	glTexParameteri(GL_TEXTURE_1D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_1D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 
-	/*m_glnPass1Shader = ItlCreateShader("shader/VSRenderPass1.vert", "shader/FSRenderPass1.frag");
-	m_glnPass2Shader = ItlCreateShader("shader/VSRenderPass2.vert", "shader/FSRenderPass2.frag");
-	m_glnPass3Shader = ItlCreateShader("shader/VSRenderPass3.vert", "shader/FSRenderPass3.frag");
+	m_glnJuliaShader = ItlCreateShader("shader/Julia.vert", "shader/Julia.frag");
+	m_gliJMaxIterationsLoc = glGetUniformLocation(m_glnJuliaShader, "fMaxIterations");
+	m_gliJLookupTableLoc = glGetUniformLocation(m_glnJuliaShader, "tLookupTable");
+	m_gliJScaleLoc = glGetUniformLocation(m_glnJuliaShader, "fScale");
+	m_gliJOffsetLoc = glGetUniformLocation(m_glnJuliaShader, "v2Offset");
+	m_gliJComplexLoc = glGetUniformLocation(m_glnJuliaShader, "v2Complex");
 
-
-	m_gliPass2InputTexLoc = glGetUniformLocation(m_glnPass2Shader, "tInputTexture");
-	m_gliPass2CurIterationLoc = glGetUniformLocation(m_glnPass2Shader, "fCurIteration");
-
-	m_gliPass3InputTexLoc = glGetUniformLocation(m_glnPass3Shader, "tInputTexture");
-	m_gliPass3InsideColorLoc = glGetUniformLocation(m_glnPass3Shader, "v4InsideColor");
-	m_gliPass3ColorTableLoc = glGetUniformLocation(m_glnPass3Shader, "tColorTable");
-	m_gliPass3MaxIterationsLoc = glGetUniformLocation(m_glnPass3Shader, "fMaxIterations");*/
-
-	m_glnShader = ItlCreateShader("shader/Julia.vert", "shader/Julia.frag");
-
-	m_gliMaxIterationsLoc = glGetUniformLocation(m_glnShader, "fMaxIterations");
-	m_gliLookupTableLoc = glGetUniformLocation(m_glnShader, "tLookupTable");
-	m_gliScaleLoc = glGetUniformLocation(m_glnShader, "fScale");
-	m_gliOffsetLoc = glGetUniformLocation(m_glnShader, "v2Offset");
-	m_gliComplexLoc = glGetUniformLocation(m_glnShader, "v2Complex");
+	m_glnTextureToScreenShader = ItlCreateShader("shader/TextureToScreen.vert", "shader/TextureToScreen.frag");
+	m_gliTTSInputTextureLoc = glGetUniformLocation(m_glnTextureToScreenShader, "tInputTexture");
 }
 
 /*********************************************************************************************
