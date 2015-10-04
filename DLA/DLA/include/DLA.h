@@ -3,6 +3,7 @@
 
 
 #include "CommonIncludes.h"
+#include "TransferFunctions.h"
 #include <qgl.h>
 
 class DLA : public QGLWidget
@@ -209,6 +210,8 @@ private:
 	float	m_fLikelihoodRight;
 	float	m_fLikelihoodUp;
 	float	m_fLikelihoodDown;
+
+	ITransferFunction * m_pTransferFunction;
 };
 
 #endif //_DLA_H_

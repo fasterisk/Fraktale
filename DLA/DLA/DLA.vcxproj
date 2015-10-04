@@ -20,9 +20,11 @@
     <ClCompile Include="src\DLA.cpp" />
     <ClCompile Include="src\DLAWindow.cpp" />
     <ClCompile Include="src\main.cpp" />
+    <ClCompile Include="TransferFunctions.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\CommonIncludes.h" />
+    <ClInclude Include="TransferFunctions.h" />
     <CustomBuild Include="include\DLA.h">
       <Message Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
       </Message>

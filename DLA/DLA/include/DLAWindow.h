@@ -21,6 +21,7 @@ public:
 
 private slots:
 /// SLOTS
+	void ItlResolutionChanged(int iNewResolution);
 	void ItlGoalRegionComboBoxChanged(int iComboBoxIndex);
 	void ItlStartRegionComboBoxChanged(int iComboBoxIndex);
 	void ItlMaxNumStepsChanged(int iNewMaxNumSteps);

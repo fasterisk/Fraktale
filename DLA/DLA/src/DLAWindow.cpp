@@ -14,9 +14,18 @@ DLAWindow::DLAWindow(QWidget * pParent)
 	QGridLayout * pGrid = new QGridLayout;
 	pGrid->setSpacing(20);
 
-	
-
 	unsigned int nRow = 0;
+
+	//Create a spin box for the resolution
+	QSpinBox * pResolutionSpinBox = new QSpinBox;
+	pResolutionSpinBox->setMinimum(64);
+	pResolutionSpinBox->setMaximum(4096);
+	pResolutionSpinBox->setValue(512);
+	//Add it to the grid
+	pGrid->addWidget(new QLabel("Resolution:"), nRow, 1);
+	pGrid->addWidget(pResolutionSpinBox, nRow, 2);
+
+	nRow++;
 
 	//Create a combo box for the global region type
 	QComboBox * pGoalRegionTypeComboBox = new QComboBox();
@@ -91,9 +100,6 @@ DLAWindow::DLAWindow(QWidget * pParent)
 	pGrid->addWidget(m_pLikelihoodDownSpinBox, nRow, 2);
 	nRow++;
 
-	
-
-
 	//Create a check button if the path should be displayed
 	QCheckBox * pPathShouldBeDisplayedCheckBox = new QCheckBox("Display path");
 	pPathShouldBeDisplayedCheckBox->setChecked(false);
@@ -115,7 +121,7 @@ DLAWindow::DLAWindow(QWidget * pParent)
 	nRow++;
 
 	//Create the DLA GL Widget
-	m_pDLA = new DLA(600, 600, 100000, this);
+	m_pDLA = new DLA(512, 512, 100000, this);
 	m_pDLA->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
 	//Add it to the grid
 	pGrid->addWidget(m_pDLA, 0, 0, nRow+10, 1);
@@ -126,6 +132,7 @@ DLAWindow::DLAWindow(QWidget * pParent)
 	setWindowTitle("DLA");
 
 	//Connect the signals
+	connect(pResolutionSpinBox, SIGNAL(valueChanged(int)), SLOT(ItlResolutionChanged(int)));
 	connect(pMaxNumberStepsSpinBox, SIGNAL(valueChanged(int)), SLOT(ItlMaxNumStepsChanged(int)));
 	connect(pGoalRegionTypeComboBox, SIGNAL(currentIndexChanged(int)), this, SLOT(ItlGoalRegionComboBoxChanged(int)));
 	connect(pStartRegionTypeComboBox, SIGNAL(currentIndexChanged(int)), this, SLOT(ItlStartRegionComboBoxChanged(int)));
@@ -144,6 +151,13 @@ DLAWindow::DLAWindow(QWidget * pParent)
 DLAWindow::~DLAWindow()
 {
 	delete m_pDLA;
+}
+
+/*********************************************************************************************
+*********************************************************************************************/
+void	DLAWindow::ItlResolutionChanged(int iNewResolution)
+{
+	m_pDLA->SetResolution(iNewResolution, iNewResolution);
 }
 
 /*********************************************************************************************

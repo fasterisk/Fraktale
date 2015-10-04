@@ -53,9 +53,15 @@
     <ClCompile Include="GeneratedFiles\Release\moc_DLAWindow.cpp">
       <Filter>Generated Files\Release</Filter>
     </ClCompile>
+    <ClCompile Include="TransferFunctions.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\CommonIncludes.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="TransferFunctions.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

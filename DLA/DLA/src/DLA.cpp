@@ -50,6 +50,8 @@ DLA::DLA(int iResolutionX, int iResolutionY, unsigned int nMaxSteps, QWidget * p
 	m_fLikelihoodUp = 0.25f;
 	m_fLikelihoodDown = 0.25f;
 
+	m_pTransferFunction = new TransferFunctionCustom2();
+
 	srand(time(NULL));
 
 	ItlUpdateStartRegion(m_iv2StartingPoint);
@@ -78,6 +80,8 @@ DLA::~DLA()
 		delete[] m_pfCurrentPathRaster;
 		m_pfCurrentPathRaster = NULL;
 	}
+
+	delete m_pTransferFunction;
 }
 
 /*********************************************************************************************
@@ -118,6 +122,7 @@ void	DLA::SetResolution(int iResolutionX, int iResolutionY)
 	{
 		m_iResolutionX = iResolutionX;
 		m_iResolutionY = iResolutionY;
+		//setFixedSize(m_iResolutionX, m_iResolutionY);
 		Reset();
 	}
 }
@@ -198,11 +203,13 @@ void DLA::Render()
 
 		if ((*pCurrentRasterPointer) > 0.0f)
 		{
-			(*pCurrentTexture) = (*pCurrentRasterPointer) / (float)m_nNumDrawnPixels;
+			float fRed, fGreen, fBlue;
+			m_pTransferFunction->GetColor((*pCurrentRasterPointer) / (float)m_nNumDrawnPixels, fRed, fGreen, fBlue);
+			(*pCurrentTexture) = fRed;
 			++pCurrentTexture;
-			(*pCurrentTexture) = ((float)m_nNumDrawnPixels - (*pCurrentRasterPointer)) / (float)m_nNumDrawnPixels;
+			(*pCurrentTexture) = fGreen;
 			++pCurrentTexture;
-			(*pCurrentTexture) = 0.0f;
+			(*pCurrentTexture) = fBlue;
 			++pCurrentTexture;
 		}
 		else if ((*pCurrentPathPointer) > 0.0f)
@@ -466,14 +473,14 @@ void	DLA::SetLikelihoodDown(float fLikelihood)
 *********************************************************************************************/
 QSize	DLA::minimumSizeHint() const
 {
-	return QSize(400, 400);
+	return QSize(m_iResolutionX, m_iResolutionY);
 }
 
 /*********************************************************************************************
 *********************************************************************************************/
 QSize	DLA::sizeHint() const
 {
-	return QSize(600, 600);
+	return QSize(m_iResolutionX, m_iResolutionY);
 }
 
 /*********************************************************************************************
@@ -934,7 +941,7 @@ void	DLA::ItlMovePoint(glm::ivec2 &rPoint)
 	int iLeft = m_fLikelihoodLeft * 100;
 	int iRight = iLeft + m_fLikelihoodRight * 100;
 	int iUp = iRight + m_fLikelihoodUp * 100;
-	int iDown = 100;
+	int iDown = 99;
 
 	int iRandom = rand() % 100;
 
@@ -945,7 +952,7 @@ void	DLA::ItlMovePoint(glm::ivec2 &rPoint)
 
 		double dDist = 0.0;
 
-		if (iRandom <= iLeft)
+		if (iRandom < iLeft)
 		{
 			//LEFT
 			v2Point.x--;
@@ -955,7 +962,7 @@ void	DLA::ItlMovePoint(glm::ivec2 &rPoint)
 				rPoint.x--;
 			
 		}
-		else if (iRandom <= iRight)
+		else if (iRandom < iRight)
 		{
 			//RIGHT
 			v2Point.x++;
@@ -964,7 +971,7 @@ void	DLA::ItlMovePoint(glm::ivec2 &rPoint)
 			if (dDist < m_iStartingRegionRadius)
 				rPoint.x++;
 		}
-		else if (iRandom <= iUp)
+		else if (iRandom < iUp)
 		{
 			//UP
 			v2Point.y++;
