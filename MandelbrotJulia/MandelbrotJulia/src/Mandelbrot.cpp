@@ -36,7 +36,7 @@ Mandelbrot::Mandelbrot(int iResolutionX, int iResolutionY, unsigned int nMaxIter
 
 	m_bUp2Date = false;
 	m_bRenderPreview = true;
-	m_bGaussianEnabled = false;
+	m_bGaussianEnabled = true;
 	m_bKeyPressed = false;
 
 	setFocusPolicy(Qt::StrongFocus);
@@ -127,7 +127,7 @@ void Mandelbrot::Render()
 		///////////////////////////////////////////////////////////////////////////////////
 		//Render mandelbrot
 		///////////////////////////////////////////////////////////////////////////////////
-		ItlRenderMandelbrot(m_iResolutionX * iSuperSampling, m_iResolutionY * iSuperSampling, 0);
+		ItlRenderMandelbrotSet(m_iResolutionX * iSuperSampling, m_iResolutionY * iSuperSampling, 0);
 
 		///////////////////////////////////////////////////////////////////////////////////
 		//Apply gaussian blur
@@ -219,6 +219,20 @@ void	Mandelbrot::mousePressEvent(QMouseEvent * event)
 	if (event->button() == Qt::MouseButton::LeftButton)
 	{
 		m_bLeftMousePressed = true;
+
+		int iMouseX = event->x();
+		int iMouseY = event->y();
+
+		float fRelMouseX = iMouseX / (float)m_iResolutionX;
+		float fRelMouseY = iMouseY / (float)m_iResolutionY;
+
+		float fReal = fRelMouseX * 2.0f - 1.0f;
+		float fImag = fRelMouseY * 2.0f - 1.0f;
+
+		fReal = fReal * m_fScale + m_fOffsetX;
+		fImag = -1.0f * (fImag * m_fScale - m_fOffsetY);
+
+		m_pParentWindow->OnComplexChanged(fReal, fImag);
 	}
 	else if (event->button() == Qt::MouseButton::MiddleButton)
 	{
@@ -455,7 +469,7 @@ GLuint	Mandelbrot::ItlCreateShader(std::string sVertexShaderPath, std::string sF
 
 /*********************************************************************************************
 *********************************************************************************************/
-void	Mandelbrot::ItlRenderMandelbrot(int iResolutionX, int iResolutionY, int iPingPongTextureIndex)
+void	Mandelbrot::ItlRenderMandelbrotSet(int iResolutionX, int iResolutionY, int iPingPongTextureIndex)
 {
 	//Resize texture
 	glBindTexture(GL_TEXTURE_2D, m_glnRenderTextures[iPingPongTextureIndex]);

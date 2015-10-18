@@ -8,7 +8,7 @@
 #define DOWN 2
 #define LEFT 3
 
-#define SUPERSAMPLING 2
+#define SUPERSAMPLING 4
 
 /*********************************************************************************************
 *********************************************************************************************/
@@ -30,6 +30,13 @@ Julia::Julia(int iResolutionX, int iResolutionY, unsigned int nMaxIterations, QW
 
 	m_fComplexReal = 0.0f;
 	m_fComplexImag = 0.0f;
+
+	m_bUp2Date = false;
+	m_bRenderPreview = true;
+	m_bGaussianEnabled = true;
+	m_bKeyPressed = false;
+
+	setFocusPolicy(Qt::StrongFocus);
 }
 
 /*********************************************************************************************
@@ -56,6 +63,9 @@ void	Julia::SetResolution(int iResolutionX, int iResolutionY)
 		m_iResolutionX = iResolutionX;
 		m_iResolutionY = iResolutionY;
 		Reset();
+
+		m_bUp2Date = false;
+		m_bRenderPreview = true;
 	}
 }
 
@@ -67,6 +77,9 @@ void	Julia::SetMaxNumIterations(int iNumIterations)
 	if (m_nMaxIterations != iNumIterations)
 	{
 		m_nMaxIterations = iNumIterations;
+
+		m_bUp2Date = false;
+		m_bRenderPreview = true;
 	}
 }
 
@@ -74,15 +87,27 @@ void	Julia::SetMaxNumIterations(int iNumIterations)
 *********************************************************************************************/
 void	Julia::SetOffset(float fXOffset, float fYOffset)
 {
-	m_fOffsetX = fXOffset;
-	m_fOffsetY = fYOffset;
+	if (fXOffset != m_fOffsetX || fYOffset != m_fOffsetY)
+	{
+		m_fOffsetX = fXOffset;
+		m_fOffsetY = fYOffset;
+
+		m_bUp2Date = false;
+		m_bRenderPreview = true;
+	}
 }
 
 /*********************************************************************************************
 *********************************************************************************************/
 void	Julia::SetScale(float fScale)
 {
-	m_fScale = fScale;
+	if (fScale != m_fScale)
+	{
+		m_fScale = fScale;
+
+		m_bUp2Date = false;
+		m_bRenderPreview = true;
+	}
 }
 
 /*********************************************************************************************
@@ -90,60 +115,42 @@ void	Julia::SetScale(float fScale)
 void Julia::Render()
 {
 
-	glViewport(0, 0, m_iResolutionX * SUPERSAMPLING, m_iResolutionY * SUPERSAMPLING);
-	glUseProgram(m_glnJuliaShader);
+	if (!m_bUp2Date)
+	{
+		int iSuperSampling = SUPERSAMPLING;
 
-	glBindFramebuffer(GL_FRAMEBUFFER, m_glnFBO);
+		if (m_bRenderPreview)
+			iSuperSampling = 1;
 
-	glEnableVertexAttribArray(0);
-	glBindBuffer(GL_ARRAY_BUFFER, m_glnVertexBuffer);
-	glVertexAttribPointer(
-		0,                  // attribute. No particular reason for 0, but must match the layout in the shader.
-		3,                  // size
-		GL_FLOAT,           // type
-		GL_FALSE,           // normalized?
-		0,                  // stride
-		(void*)0            // array buffer offset
-		);
+		///////////////////////////////////////////////////////////////////////////////////
+		//Render julia set
+		///////////////////////////////////////////////////////////////////////////////////
+		ItlRenderJuliaSet(m_iResolutionX * iSuperSampling, m_iResolutionY * iSuperSampling, 0);
+
+		///////////////////////////////////////////////////////////////////////////////////
+		//Apply gaussian blur
+		///////////////////////////////////////////////////////////////////////////////////
+		if (m_bGaussianEnabled && !m_bRenderPreview)
+		{
+			ItlRenderGaussian(m_iResolutionX * iSuperSampling, m_iResolutionY * iSuperSampling, 1);
+			m_iCurrentScreenTexture = 1;
+		}
+		else
+		{
+			m_iCurrentScreenTexture = 0;
+		}
 
 
-	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_1D, m_glnTransferFunctionTexture);
-	glUniform1d(m_gliJLookupTableLoc, GL_TEXTURE0);
-	glUniform1f(m_gliJMaxIterationsLoc, (float)m_nMaxIterations);
-	glUniform1f(m_gliJScaleLoc, m_fScale);
-	glUniform2f(m_gliJOffsetLoc, m_fOffsetX, m_fOffsetY);
-	glUniform2f(m_gliJComplexLoc, m_fComplexReal, m_fComplexImag);
+		if (m_bRenderPreview)
+			m_bRenderPreview = false;
+		else
+			m_bUp2Date = true;
+	}
 
-	// Draw the triangles !
-	glDrawArrays(GL_TRIANGLES, 0, 6);
-
-	glDisableVertexAttribArray(0);
-
-	glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
-	glViewport(0, 0, m_iResolutionX, m_iResolutionY);
-
-	glUseProgram(m_glnTextureToScreenShader);
-	glEnableVertexAttribArray(0);
-	glBindBuffer(GL_ARRAY_BUFFER, m_glnVertexBuffer);
-	glVertexAttribPointer(
-		0,                  // attribute. No particular reason for 0, but must match the layout in the shader.
-		3,                  // size
-		GL_FLOAT,           // type
-		GL_FALSE,           // normalized?
-		0,                  // stride
-		(void*)0            // array buffer offset
-		);
-
-	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, m_glnRenderTexture);
-	glUniform1d(m_gliTTSInputTextureLoc, GL_TEXTURE0);
-
-	// Draw the triangles !
-	glDrawArrays(GL_TRIANGLES, 0, 6);
-
-	glDisableVertexAttribArray(0);
+	///////////////////////////////////////////////////////////////////////////////////
+	// Render to screen
+	///////////////////////////////////////////////////////////////////////////////////
+	ItlRenderTextureToScreen(m_iCurrentScreenTexture);
 }
 
 /*********************************************************************************************
@@ -158,6 +165,9 @@ void	Julia::SetComplex(float fReal, float fImag)
 {
 	m_fComplexReal = fReal;
 	m_fComplexImag = fImag;
+
+	m_bUp2Date = false;
+	m_bRenderPreview = true;
 }
 
 /*********************************************************************************************
@@ -222,8 +232,10 @@ void	Julia::mouseMoveEvent(QMouseEvent * event)
 	int iDiffX = event->x() - m_iMouseXBefore;
 	int iDiffY = event->y() - m_iMouseYBefore;
 
-	m_fOffsetX -= (iDiffX / (float)m_iResolutionX) * m_fScale;
-	m_fOffsetY += (iDiffY / (float)m_iResolutionY) * m_fScale;
+
+	SetOffset(m_fOffsetX - (iDiffX / (float)m_iResolutionX) * m_fScale,
+			  m_fOffsetY + (iDiffY / (float)m_iResolutionY) * m_fScale);
+
 
 	m_iMouseXBefore = event->x();
 	m_iMouseYBefore = event->y();
@@ -242,9 +254,32 @@ void	Julia::wheelEvent(QWheelEvent * event)
 {
 	int iNumDegrees = event->delta() / 8;
 	int iNumSteps = iNumDegrees / 15;
-	iNumDegrees *= 20.0f;
+	iNumSteps *= 10.0f;
 
-	m_fScale = std::max(0.0f, m_fScale * (1.0f - iNumSteps / 100.0f));
+	SetScale(std::max(0.0f, m_fScale * (1.0f - iNumSteps / 100.0f)));
+}
+
+/*********************************************************************************************
+*********************************************************************************************/
+void	Julia::keyPressEvent(QKeyEvent * event)
+{
+	if (!m_bKeyPressed)
+	{
+		if (event->key() == Qt::Key_G)
+		{
+			m_bGaussianEnabled = !m_bGaussianEnabled;
+			m_bUp2Date = false;
+		}
+	}
+
+	m_bKeyPressed = true;
+}
+
+/*********************************************************************************************
+*********************************************************************************************/
+void	Julia::keyReleaseEvent(QKeyEvent *event)
+{
+	m_bKeyPressed = false;
 }
 
 /*********************************************************************************************
@@ -269,25 +304,27 @@ void	Julia::ItlInitializeShaderAndTextures()
 
 	glBufferData(GL_ARRAY_BUFFER, sizeof(glfVertexBufferData), glfVertexBufferData, GL_STATIC_DRAW);
 
-	/// Supersample texture
+	/// Textures
+	glGenFramebuffers(2, m_glnFBOs);
+	glGenTextures(2, m_glnRenderTextures);
 
-	//Generate frame buffer and texture
-	glGenFramebuffers(1, &m_glnFBO);
-	glGenTextures(1, &m_glnRenderTexture);
+	for (unsigned int n = 0; n < 2; ++n)
+	{
+		glBindFramebuffer(GL_FRAMEBUFFER, m_glnFBOs[n]);
+		glBindTexture(GL_TEXTURE_2D, m_glnRenderTextures[n]);
 
-	glBindFramebuffer(GL_FRAMEBUFFER, m_glnFBO);
-	glBindTexture(GL_TEXTURE_2D, m_glnRenderTexture);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, m_iResolutionX, m_iResolutionY, 0, GL_RGBA, GL_FLOAT, NULL);
 
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, m_iResolutionX * SUPERSAMPLING, m_iResolutionY * SUPERSAMPLING, 0, GL_RGBA, GL_FLOAT, NULL);
+		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, m_glnRenderTextures[n], 0);
 
-	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, m_glnRenderTexture, 0);
+		assert(glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE);
 
-	assert(glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE);
+		glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	}
 
-	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
 	//Transfer function texture
 	glEnable(GL_TEXTURE_1D);
@@ -310,14 +347,18 @@ void	Julia::ItlInitializeShaderAndTextures()
 	glTexParameteri(GL_TEXTURE_1D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 
 	m_glnJuliaShader = ItlCreateShader("shader/Julia.vert", "shader/Julia.frag");
-	m_gliJMaxIterationsLoc = glGetUniformLocation(m_glnJuliaShader, "fMaxIterations");
-	m_gliJLookupTableLoc = glGetUniformLocation(m_glnJuliaShader, "tLookupTable");
-	m_gliJScaleLoc = glGetUniformLocation(m_glnJuliaShader, "fScale");
-	m_gliJOffsetLoc = glGetUniformLocation(m_glnJuliaShader, "v2Offset");
-	m_gliJComplexLoc = glGetUniformLocation(m_glnJuliaShader, "v2Complex");
+	m_JuliaShaderLocs.gliMaxIterationsLoc = glGetUniformLocation(m_glnJuliaShader, "fMaxIterations");
+	m_JuliaShaderLocs.gliLookupTableLoc = glGetUniformLocation(m_glnJuliaShader, "tLookupTable");
+	m_JuliaShaderLocs.gliScaleLoc = glGetUniformLocation(m_glnJuliaShader, "fScale");
+	m_JuliaShaderLocs.gliOffsetLoc = glGetUniformLocation(m_glnJuliaShader, "v2Offset");
+	m_JuliaShaderLocs.gliComplexLoc = glGetUniformLocation(m_glnJuliaShader, "v2Complex");
 
 	m_glnTextureToScreenShader = ItlCreateShader("shader/TextureToScreen.vert", "shader/TextureToScreen.frag");
-	m_gliTTSInputTextureLoc = glGetUniformLocation(m_glnTextureToScreenShader, "tInputTexture");
+	m_TextureToScreenShaderLocs.gliInputTextureLoc = glGetUniformLocation(m_glnTextureToScreenShader, "tInputTexture");
+
+	m_glnGaussianShader = ItlCreateShader("shader/GaussianSmoothing.vert", "shader/GaussianSmoothing.frag");
+	m_GaussianShaderLocs.gliInputTextureLoc = glGetUniformLocation(m_glnGaussianShader, "tInputTexture");
+	m_GaussianShaderLocs.gliScaleLoc = glGetUniformLocation(m_glnGaussianShader, "v2Scale");
 }
 
 /*********************************************************************************************
@@ -383,4 +424,113 @@ GLuint	Julia::ItlCreateShader(std::string sVertexShaderPath, std::string sFragme
 	glDeleteShader(glnFragmentShader);
 
 	return glnShader;
+}
+
+/*********************************************************************************************
+*********************************************************************************************/
+void	Julia::ItlRenderJuliaSet(int iResolutionX, int iResolutionY, int iPingPongTextureIndex)
+{
+	//Resize texture
+	glBindTexture(GL_TEXTURE_2D, m_glnRenderTextures[iPingPongTextureIndex]);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, iResolutionX, iResolutionY, 0, GL_RGBA, GL_FLOAT, NULL);
+	glBindTexture(GL_TEXTURE_2D, 0);
+
+	glViewport(0, 0, iResolutionX, iResolutionY);
+	glUseProgram(m_glnJuliaShader);
+
+	glBindFramebuffer(GL_FRAMEBUFFER, m_glnFBOs[iPingPongTextureIndex]);
+
+	glEnableVertexAttribArray(0);
+	glBindBuffer(GL_ARRAY_BUFFER, m_glnVertexBuffer);
+	glVertexAttribPointer(
+		0,                  // attribute. No particular reason for 0, but must match the layout in the shader.
+		3,                  // size
+		GL_FLOAT,           // type
+		GL_FALSE,           // normalized?
+		0,                  // stride
+		(void*)0            // array buffer offset
+		);
+
+
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_1D, m_glnTransferFunctionTexture);
+	glUniform1d(m_JuliaShaderLocs.gliLookupTableLoc, GL_TEXTURE0);
+	glUniform1f(m_JuliaShaderLocs.gliMaxIterationsLoc, (float)m_nMaxIterations);
+	glUniform1f(m_JuliaShaderLocs.gliScaleLoc, m_fScale);
+	glUniform2f(m_JuliaShaderLocs.gliOffsetLoc, m_fOffsetX, m_fOffsetY);
+	glUniform2f(m_JuliaShaderLocs.gliComplexLoc, m_fComplexReal, m_fComplexImag);
+
+	// Draw the triangles !
+	glDrawArrays(GL_TRIANGLES, 0, 6);
+
+	glDisableVertexAttribArray(0);
+
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+}
+
+/*********************************************************************************************
+*********************************************************************************************/
+void	Julia::ItlRenderGaussian(int iResolutionX, int iResolutionY, int iPingPongTextureIndex)
+{
+	//Resize texture
+	glBindTexture(GL_TEXTURE_2D, m_glnRenderTextures[iPingPongTextureIndex]);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, iResolutionX, iResolutionY, 0, GL_RGBA, GL_FLOAT, NULL);
+	glBindTexture(GL_TEXTURE_2D, 0);
+
+	glViewport(0, 0, iResolutionX, iResolutionY);
+	glUseProgram(m_glnGaussianShader);
+
+	glBindFramebuffer(GL_FRAMEBUFFER, m_glnFBOs[iPingPongTextureIndex]);
+
+	glEnableVertexAttribArray(0);
+	glBindBuffer(GL_ARRAY_BUFFER, m_glnVertexBuffer);
+	glVertexAttribPointer(
+		0,                  // attribute. No particular reason for 0, but must match the layout in the shader.
+		3,                  // size
+		GL_FLOAT,           // type
+		GL_FALSE,           // normalized?
+		0,                  // stride
+		(void*)0            // array buffer offset
+		);
+
+
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, m_glnRenderTextures[(iPingPongTextureIndex + 1) % 2]);
+	glUniform1d(m_GaussianShaderLocs.gliInputTextureLoc, GL_TEXTURE0);
+	glUniform2f(m_GaussianShaderLocs.gliScaleLoc, 1.0f / iResolutionX, 1.0f / iResolutionY);
+
+	// Draw the triangles !
+	glDrawArrays(GL_TRIANGLES, 0, 6);
+
+	glDisableVertexAttribArray(0);
+
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+}
+
+/*********************************************************************************************
+*********************************************************************************************/
+void	Julia::ItlRenderTextureToScreen(int iPingPongTextureIndex)
+{
+	glViewport(0, 0, m_iResolutionX, m_iResolutionY);
+
+	glUseProgram(m_glnTextureToScreenShader);
+	glEnableVertexAttribArray(0);
+	glBindBuffer(GL_ARRAY_BUFFER, m_glnVertexBuffer);
+	glVertexAttribPointer(
+		0,                  // attribute. No particular reason for 0, but must match the layout in the shader.
+		3,                  // size
+		GL_FLOAT,           // type
+		GL_FALSE,           // normalized?
+		0,                  // stride
+		(void*)0            // array buffer offset
+		);
+
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, m_glnRenderTextures[iPingPongTextureIndex]);
+	glUniform1d(m_TextureToScreenShaderLocs.gliInputTextureLoc, GL_TEXTURE0);
+
+	// Draw the triangles !
+	glDrawArrays(GL_TRIANGLES, 0, 6);
+
+	glDisableVertexAttribArray(0);
 }

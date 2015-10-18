@@ -104,8 +104,8 @@ private:
 	/// Create shader
 	GLuint	ItlCreateShader(std::string sVertexShaderPath, std::string sFragmentShaderPath);
 
-	/// Renders mandelbrot into the texture of the given index
-	void	ItlRenderMandelbrot(int iResolutionX, int iResolutionY, int iPingPongTextureIndex);
+	/// Renders the mandelbrot set into the texture of the given index
+	void	ItlRenderMandelbrotSet(int iResolutionX, int iResolutionY, int iPingPongTextureIndex);
 
 	/// Renders gaussian blur
 	void	ItlRenderGaussian(int iResolutionX, int iResolutionY, int iPingPongTextureIndex);
@@ -144,8 +144,6 @@ private:
 	MandelbrotShaderLoc			m_MandelbrotShaderLocs;
 	GaussianSmoothingShaderLoc	m_GaussianShaderLocs;
 	TextureToScreenShaderLoc	m_TextureToScreenShaderLocs;
-
-
 
 	ITransferFunction * m_pTransferFunction;
 

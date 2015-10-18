@@ -64,8 +64,31 @@ protected:
 	virtual void	mouseMoveEvent(QMouseEvent * event);
 	virtual void	mouseReleaseEvent(QMouseEvent * event);
 	virtual void	wheelEvent(QWheelEvent * event);
+	virtual void	keyPressEvent(QKeyEvent * event);
+	virtual void	keyReleaseEvent(QKeyEvent *event);
 
 private:
+/// TYPES
+	struct JuliaShaderLoc
+	{
+		GLint	gliMaxIterationsLoc;
+		GLint	gliLookupTableLoc;
+		GLint	gliScaleLoc;
+		GLint	gliOffsetLoc;
+		GLint	gliComplexLoc;
+	};
+
+	struct TextureToScreenShaderLoc
+	{
+		GLint	gliInputTextureLoc;
+	};
+
+	struct GaussianSmoothingShaderLoc
+	{
+		GLint	gliInputTextureLoc;
+		GLint	gliScaleLoc;
+	};
+
 	/// INITIALIZATION
 
 	/// Initializes the shader and textures
@@ -76,6 +99,15 @@ private:
 
 	/// Create shader
 	GLuint	ItlCreateShader(std::string sVertexShaderPath, std::string sFragmentShaderPath);
+
+	/// Renders the julia set into the texture of the given index
+	void	ItlRenderJuliaSet(int iResolutionX, int iResolutionY, int iPingPongTextureIndex);
+
+	/// Renders gaussian blur
+	void	ItlRenderGaussian(int iResolutionX, int iResolutionY, int iPingPongTextureIndex);
+
+	/// Renders a texture to screen
+	void	ItlRenderTextureToScreen(int iPingPongTextureIndex);
 
 
 	/// MEMBERS
@@ -97,22 +129,26 @@ private:
 	GLuint	m_glnVertexArray;
 	GLuint	m_glnVertexBuffer;
 
-	GLuint	m_glnFBO;
-	GLuint	m_glnRenderTexture;
+	GLuint	m_glnFBOs[2];
+	GLuint	m_glnRenderTextures[2];
 	GLuint	m_glnTransferFunctionTexture;
 
 	GLuint	m_glnJuliaShader;
+	GLuint	m_glnGaussianShader;
 	GLuint	m_glnTextureToScreenShader;
 
-	GLint	m_gliJMaxIterationsLoc;
-	GLint	m_gliJLookupTableLoc;
-	GLint	m_gliJScaleLoc;
-	GLint	m_gliJOffsetLoc;
-	GLint	m_gliJComplexLoc;
-
-	GLint	m_gliTTSInputTextureLoc;
+	JuliaShaderLoc				m_JuliaShaderLocs;
+	GaussianSmoothingShaderLoc	m_GaussianShaderLocs;
+	TextureToScreenShaderLoc	m_TextureToScreenShaderLocs;
 
 	ITransferFunction * m_pTransferFunction;
+
+	bool	m_bUp2Date;
+	bool	m_bRenderPreview;
+	bool	m_bGaussianEnabled;
+	bool	m_bKeyPressed;
+
+	int		m_iCurrentScreenTexture;
 };
 
 #endif //_JULIA_H_
