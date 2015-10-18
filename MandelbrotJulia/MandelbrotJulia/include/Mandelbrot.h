@@ -68,8 +68,31 @@ protected:
 	virtual void	mouseMoveEvent(QMouseEvent * event);
 	virtual void	mouseReleaseEvent(QMouseEvent * event);
 	virtual void	wheelEvent(QWheelEvent * event);
+	virtual void	keyPressEvent(QKeyEvent * event);
+	virtual void	keyReleaseEvent(QKeyEvent *event);
 
 private:
+/// Types
+
+	struct MandelbrotShaderLoc
+	{
+		GLint	gliMaxIterationsLoc;
+		GLint	gliLookupTableLoc;
+		GLint	gliScaleLoc;
+		GLint	gliOffsetLoc;
+	};
+
+	struct TextureToScreenShaderLoc
+	{
+		GLint	gliInputTextureLoc;
+	};
+
+	struct GaussianSmoothingShaderLoc
+	{
+		GLint	gliInputTextureLoc;
+		GLint	gliScaleLoc;
+	};
+
 /// INITIALIZATION
 
 	/// Initializes the shader and textures
@@ -80,6 +103,15 @@ private:
 
 	/// Create shader
 	GLuint	ItlCreateShader(std::string sVertexShaderPath, std::string sFragmentShaderPath);
+
+	/// Renders mandelbrot into the texture of the given index
+	void	ItlRenderMandelbrot(int iResolutionX, int iResolutionY, int iPingPongTextureIndex);
+
+	/// Renders gaussian blur
+	void	ItlRenderGaussian(int iResolutionX, int iResolutionY, int iPingPongTextureIndex);
+
+	/// Renders a texture to screen
+	void	ItlRenderTextureToScreen(int iPingPongTextureIndex);
 
 
 /// MEMBERS
@@ -101,19 +133,19 @@ private:
 	GLuint	m_glnVertexArray;
 	GLuint	m_glnVertexBuffer;
 
-	GLuint	m_glnFBO;
-	GLuint	m_glnRenderTexture;
+	GLuint	m_glnFBOs[2];			// 2 for ping pong
+	GLuint	m_glnRenderTextures[2];	// 2 for ping pong
 	GLuint	m_glnTransferFunctionTexture;
 
 	GLuint	m_glnMandelbrotShader;
 	GLuint	m_glnTextureToScreenShader;
+	GLuint	m_glnGaussianShader;
 
-	GLint	m_gliMBMaxIterationsLoc;
-	GLint	m_gliMBLookupTableLoc;
-	GLint	m_gliMBScaleLoc;
-	GLint	m_gliMBOffsetLoc;
+	MandelbrotShaderLoc			m_MandelbrotShaderLocs;
+	GaussianSmoothingShaderLoc	m_GaussianShaderLocs;
+	TextureToScreenShaderLoc	m_TextureToScreenShaderLocs;
 
-	GLint	m_gliTTSInputTextureLoc;
+
 
 	ITransferFunction * m_pTransferFunction;
 
@@ -121,6 +153,10 @@ private:
 
 	bool	m_bUp2Date;
 	bool	m_bRenderPreview;
+	bool	m_bGaussianEnabled;
+	bool	m_bKeyPressed;
+
+	int		m_iCurrentScreenTexture;
 
 };
 

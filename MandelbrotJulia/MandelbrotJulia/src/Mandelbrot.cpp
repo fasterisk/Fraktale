@@ -36,6 +36,10 @@ Mandelbrot::Mandelbrot(int iResolutionX, int iResolutionY, unsigned int nMaxIter
 
 	m_bUp2Date = false;
 	m_bRenderPreview = true;
+	m_bGaussianEnabled = false;
+	m_bKeyPressed = false;
+
+	setFocusPolicy(Qt::StrongFocus);
 }
 
 /*********************************************************************************************
@@ -120,46 +124,24 @@ void Mandelbrot::Render()
 		if (m_bRenderPreview)
 			iSuperSampling = 1;
 
-		//Resize texture
-		glBindTexture(GL_TEXTURE_2D, m_glnRenderTexture);
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, m_iResolutionX * iSuperSampling, m_iResolutionY * iSuperSampling, 0, GL_RGBA, GL_FLOAT, NULL);
-		glBindTexture(GL_TEXTURE_2D, 0);
-
 		///////////////////////////////////////////////////////////////////////////////////
 		//Render mandelbrot
 		///////////////////////////////////////////////////////////////////////////////////
-		glViewport(0, 0, m_iResolutionX * iSuperSampling, m_iResolutionY * iSuperSampling);
-		glUseProgram(m_glnMandelbrotShader);
+		ItlRenderMandelbrot(m_iResolutionX * iSuperSampling, m_iResolutionY * iSuperSampling, 0);
 
-		glBindFramebuffer(GL_FRAMEBUFFER, m_glnFBO);
+		///////////////////////////////////////////////////////////////////////////////////
+		//Apply gaussian blur
+		///////////////////////////////////////////////////////////////////////////////////
+		if (m_bGaussianEnabled && !m_bRenderPreview)
+		{
+			ItlRenderGaussian(m_iResolutionX * iSuperSampling, m_iResolutionY * iSuperSampling, 1);
+			m_iCurrentScreenTexture = 1;
+		}
+		else
+		{
+			m_iCurrentScreenTexture = 0;
+		}
 
-		glEnableVertexAttribArray(0);
-		glBindBuffer(GL_ARRAY_BUFFER, m_glnVertexBuffer);
-		glVertexAttribPointer(
-			0,                  // attribute. No particular reason for 0, but must match the layout in the shader.
-			3,                  // size
-			GL_FLOAT,           // type
-			GL_FALSE,           // normalized?
-			0,                  // stride
-			(void*)0            // array buffer offset
-			);
-
-
-		glActiveTexture(GL_TEXTURE0);
-		glBindTexture(GL_TEXTURE_1D, m_glnTransferFunctionTexture);
-		glUniform1d(m_gliMBLookupTableLoc, GL_TEXTURE0);
-		glUniform1f(m_gliMBMaxIterationsLoc, (float)m_nMaxIterations);
-		glUniform1f(m_gliMBScaleLoc, m_fScale);
-		glUniform2f(m_gliMBOffsetLoc, m_fOffsetX, m_fOffsetY);
-
-		// Draw the triangles !
-		glDrawArrays(GL_TRIANGLES, 0, 6);
-
-		glDisableVertexAttribArray(0);
-
-		glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
-		//
 
 		if (m_bRenderPreview)
 			m_bRenderPreview = false;
@@ -170,29 +152,8 @@ void Mandelbrot::Render()
 	///////////////////////////////////////////////////////////////////////////////////
 	// Render to screen
 	///////////////////////////////////////////////////////////////////////////////////
-
-	glViewport(0, 0, m_iResolutionX, m_iResolutionY);
-
-	glUseProgram(m_glnTextureToScreenShader);
-	glEnableVertexAttribArray(0);
-	glBindBuffer(GL_ARRAY_BUFFER, m_glnVertexBuffer);
-	glVertexAttribPointer(
-		0,                  // attribute. No particular reason for 0, but must match the layout in the shader.
-		3,                  // size
-		GL_FLOAT,           // type
-		GL_FALSE,           // normalized?
-		0,                  // stride
-		(void*)0            // array buffer offset
-		);
-
-	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, m_glnRenderTexture);
-	glUniform1d(m_gliTTSInputTextureLoc, GL_TEXTURE0);
-
-	// Draw the triangles !
-	glDrawArrays(GL_TRIANGLES, 0, 6);
-
-	glDisableVertexAttribArray(0);
+	ItlRenderTextureToScreen(m_iCurrentScreenTexture);
+	
 }
 
 /*********************************************************************************************
@@ -326,6 +287,29 @@ void	Mandelbrot::wheelEvent(QWheelEvent * event)
 
 /*********************************************************************************************
 *********************************************************************************************/
+void	Mandelbrot::keyPressEvent(QKeyEvent * event)
+{
+	if (!m_bKeyPressed)
+	{
+		if (event->key() == Qt::Key_G)
+		{
+			m_bGaussianEnabled = !m_bGaussianEnabled;
+			m_bUp2Date = false;
+		}
+	}
+
+	m_bKeyPressed = true;
+}
+
+/*********************************************************************************************
+*********************************************************************************************/
+void	Mandelbrot::keyReleaseEvent(QKeyEvent *event)
+{
+	m_bKeyPressed = false;
+}
+
+/*********************************************************************************************
+*********************************************************************************************/
 void	Mandelbrot::ItlInitializeShaderAndTextures()
 {
 	static const GLfloat glfVertexBufferData[] = {
@@ -346,23 +330,27 @@ void	Mandelbrot::ItlInitializeShaderAndTextures()
 
 	glBufferData(GL_ARRAY_BUFFER, sizeof(glfVertexBufferData), glfVertexBufferData, GL_STATIC_DRAW);
 
-	/// Supersample textures
-	glGenFramebuffers(1, &m_glnFBO);
-	glGenTextures(1, &m_glnRenderTexture);
+	/// Textures
+	glGenFramebuffers(2, m_glnFBOs);
+	glGenTextures(2, m_glnRenderTextures);
 
-	glBindFramebuffer(GL_FRAMEBUFFER, m_glnFBO);
-	glBindTexture(GL_TEXTURE_2D, m_glnRenderTexture);
+	for (unsigned int n = 0; n < 2; ++n)
+	{
+		glBindFramebuffer(GL_FRAMEBUFFER, m_glnFBOs[n]);
+		glBindTexture(GL_TEXTURE_2D, m_glnRenderTextures[n]);
 
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, m_iResolutionX * SUPERSAMPLING, m_iResolutionY * SUPERSAMPLING, 0, GL_RGBA, GL_FLOAT, NULL);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, m_iResolutionX, m_iResolutionY, 0, GL_RGBA, GL_FLOAT, NULL);
 
-	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, m_glnRenderTexture, 0);
+		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, m_glnRenderTextures[n], 0);
 
-	assert(glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE);
+		assert(glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE);
 
-	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+		glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	}
+	
 
 
 	//Transfer function texture
@@ -387,13 +375,17 @@ void	Mandelbrot::ItlInitializeShaderAndTextures()
 
 
 	m_glnMandelbrotShader = ItlCreateShader("shader/Mandelbrot.vert", "shader/Mandelbrot.frag");
-	m_gliMBMaxIterationsLoc = glGetUniformLocation(m_glnMandelbrotShader, "fMaxIterations");
-	m_gliMBLookupTableLoc = glGetUniformLocation(m_glnMandelbrotShader, "tLookupTable");
-	m_gliMBScaleLoc = glGetUniformLocation(m_glnMandelbrotShader, "fScale");
-	m_gliMBOffsetLoc = glGetUniformLocation(m_glnMandelbrotShader, "v2Offset");
+	m_MandelbrotShaderLocs.gliMaxIterationsLoc = glGetUniformLocation(m_glnMandelbrotShader, "fMaxIterations");
+	m_MandelbrotShaderLocs.gliLookupTableLoc = glGetUniformLocation(m_glnMandelbrotShader, "tLookupTable");
+	m_MandelbrotShaderLocs.gliScaleLoc = glGetUniformLocation(m_glnMandelbrotShader, "fScale");
+	m_MandelbrotShaderLocs.gliOffsetLoc = glGetUniformLocation(m_glnMandelbrotShader, "v2Offset");
 
 	m_glnTextureToScreenShader = ItlCreateShader("shader/TextureToScreen.vert", "shader/TextureToScreen.frag");
-	m_gliTTSInputTextureLoc = glGetUniformLocation(m_glnTextureToScreenShader, "tInputTexture");
+	m_TextureToScreenShaderLocs.gliInputTextureLoc = glGetUniformLocation(m_glnTextureToScreenShader, "tInputTexture");
+
+	m_glnGaussianShader = ItlCreateShader("shader/GaussianSmoothing.vert", "shader/GaussianSmoothing.frag");
+	m_GaussianShaderLocs.gliInputTextureLoc = glGetUniformLocation(m_glnGaussianShader, "tInputTexture");
+	m_GaussianShaderLocs.gliScaleLoc = glGetUniformLocation(m_glnGaussianShader, "v2Scale");
 }
 
 /*********************************************************************************************
@@ -459,4 +451,112 @@ GLuint	Mandelbrot::ItlCreateShader(std::string sVertexShaderPath, std::string sF
 	glDeleteShader(glnFragmentShader);
 
 	return glnShader;
+}
+
+/*********************************************************************************************
+*********************************************************************************************/
+void	Mandelbrot::ItlRenderMandelbrot(int iResolutionX, int iResolutionY, int iPingPongTextureIndex)
+{
+	//Resize texture
+	glBindTexture(GL_TEXTURE_2D, m_glnRenderTextures[iPingPongTextureIndex]);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, iResolutionX, iResolutionY, 0, GL_RGBA, GL_FLOAT, NULL);
+	glBindTexture(GL_TEXTURE_2D, 0);
+
+	glViewport(0, 0, iResolutionX, iResolutionY);
+	glUseProgram(m_glnMandelbrotShader);
+
+	glBindFramebuffer(GL_FRAMEBUFFER, m_glnFBOs[iPingPongTextureIndex]);
+
+	glEnableVertexAttribArray(0);
+	glBindBuffer(GL_ARRAY_BUFFER, m_glnVertexBuffer);
+	glVertexAttribPointer(
+		0,                  // attribute. No particular reason for 0, but must match the layout in the shader.
+		3,                  // size
+		GL_FLOAT,           // type
+		GL_FALSE,           // normalized?
+		0,                  // stride
+		(void*)0            // array buffer offset
+		);
+
+
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_1D, m_glnTransferFunctionTexture);
+	glUniform1d(m_MandelbrotShaderLocs.gliLookupTableLoc, GL_TEXTURE0);
+	glUniform1f(m_MandelbrotShaderLocs.gliMaxIterationsLoc, (float)m_nMaxIterations);
+	glUniform1f(m_MandelbrotShaderLocs.gliScaleLoc, m_fScale);
+	glUniform2f(m_MandelbrotShaderLocs.gliOffsetLoc, m_fOffsetX, m_fOffsetY);
+
+	// Draw the triangles !
+	glDrawArrays(GL_TRIANGLES, 0, 6);
+
+	glDisableVertexAttribArray(0);
+
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+}
+
+/*********************************************************************************************
+*********************************************************************************************/
+void	Mandelbrot::ItlRenderGaussian(int iResolutionX, int iResolutionY, int iPingPongTextureIndex)
+{
+	//Resize texture
+	glBindTexture(GL_TEXTURE_2D, m_glnRenderTextures[iPingPongTextureIndex]);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, iResolutionX, iResolutionY, 0, GL_RGBA, GL_FLOAT, NULL);
+	glBindTexture(GL_TEXTURE_2D, 0);
+
+	glViewport(0, 0, iResolutionX, iResolutionY);
+	glUseProgram(m_glnGaussianShader);
+
+	glBindFramebuffer(GL_FRAMEBUFFER, m_glnFBOs[iPingPongTextureIndex]);
+
+	glEnableVertexAttribArray(0);
+	glBindBuffer(GL_ARRAY_BUFFER, m_glnVertexBuffer);
+	glVertexAttribPointer(
+		0,                  // attribute. No particular reason for 0, but must match the layout in the shader.
+		3,                  // size
+		GL_FLOAT,           // type
+		GL_FALSE,           // normalized?
+		0,                  // stride
+		(void*)0            // array buffer offset
+		);
+
+
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, m_glnRenderTextures[(iPingPongTextureIndex + 1) % 2]);
+	glUniform1d(m_GaussianShaderLocs.gliInputTextureLoc, GL_TEXTURE0);
+	glUniform2f(m_GaussianShaderLocs.gliScaleLoc, 1.0f / iResolutionX, 1.0f / iResolutionY);
+
+	// Draw the triangles !
+	glDrawArrays(GL_TRIANGLES, 0, 6);
+
+	glDisableVertexAttribArray(0);
+
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+}
+
+/*********************************************************************************************
+*********************************************************************************************/
+void	Mandelbrot::ItlRenderTextureToScreen(int iPingPongTextureIndex)
+{
+	glViewport(0, 0, m_iResolutionX, m_iResolutionY);
+
+	glUseProgram(m_glnTextureToScreenShader);
+	glEnableVertexAttribArray(0);
+	glBindBuffer(GL_ARRAY_BUFFER, m_glnVertexBuffer);
+	glVertexAttribPointer(
+		0,                  // attribute. No particular reason for 0, but must match the layout in the shader.
+		3,                  // size
+		GL_FLOAT,           // type
+		GL_FALSE,           // normalized?
+		0,                  // stride
+		(void*)0            // array buffer offset
+		);
+
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, m_glnRenderTextures[iPingPongTextureIndex]);
+	glUniform1d(m_TextureToScreenShaderLocs.gliInputTextureLoc, GL_TEXTURE0);
+
+	// Draw the triangles !
+	glDrawArrays(GL_TRIANGLES, 0, 6);
+
+	glDisableVertexAttribArray(0);
 }
