@@ -5,7 +5,8 @@ uniform float fMaxIterations;
 uniform float fScale;
 uniform vec2 v2Offset;
 uniform sampler1D tLookupTable;
-uniform float fPixelSize;
+uniform float fTFPar1;
+uniform float fTFPar2;
 
 in vec2 v2f_v2C;
 
@@ -19,11 +20,14 @@ void main(void)
 	vec2 z = vec2(0.0, 0.0);
 
 	color = vec4(0.0, 0.0, 0.0, 1.0);
-	for (float i = 0; i < fMaxIterations; i += 1.0)
+
+	float i = 0;
+
+	for (; i < fMaxIterations; i += 1.0)
 	{
 		if (dot(z, z) > 4.0)
 		{
-			color = texture(tLookupTable, i / fMaxIterations);
+			color = texture(tLookupTable, fTFPar2 + (i / fTFPar1));
 			break;
 		}
 

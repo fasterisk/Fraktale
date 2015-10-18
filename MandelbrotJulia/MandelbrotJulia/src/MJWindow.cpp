@@ -17,11 +17,11 @@ MJWindow::MJWindow(QWidget * pParent)
 	pGrid->setSpacing(20);
 
 	//Create the Mandelbrot GL Widget
-	m_pMandelbrot = new Mandelbrot(512, 512, 5000, this);
+	m_pMandelbrot = new Mandelbrot(512, 512, 20000, this);
 	m_pMandelbrot->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
 
 	//Create the Julia GL Widget
-	m_pJulia = new Julia(512, 512, 5000, this);
+	m_pJulia = new Julia(512, 512, 20000, this);
 	m_pJulia->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
 
 	OnComplexChanged(0.0f, 0.0f);

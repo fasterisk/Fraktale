@@ -131,3 +131,56 @@ void	TransferFunctionCustom2::GetColor(float fValue, float & rfRed, float & rfGr
 		rfBlue = 0.0f;
 	}
 }
+
+/*********************************************************************************************
+*********************************************************************************************/
+void	TransferFunctionHSVToRGB::GetColor(float fValue, float & rfRed, float & rfGreen, float & rfBlue)
+{
+
+	float H = fValue * 360.0f;
+	float S = 1.0f;
+	float V = 1.0f;
+
+	assert(H >= 0.0f && H <= 360.0f);
+
+	int iH = (int)(H / 60.0f);
+	float f = H / 60.0f - iH;
+
+	float p = V * (1.0f - S);
+	float q = V * (1.0f - S * f);
+	float t = V * (1.0f - S * (1.0f - f));
+
+	switch (iH)
+	{
+	case 1:
+		rfRed = q;
+		rfGreen = V;
+		rfBlue = p;
+		break;
+	case 2:
+		rfRed = p;
+		rfGreen = V;
+		rfBlue = t;
+		break;
+	case 3:
+		rfRed = p;
+		rfGreen = q;
+		rfBlue = V;
+		break;
+	case 4:
+		rfRed = t;
+		rfGreen = p;
+		rfBlue = V;
+		break;
+	case 5:
+		rfRed = V;
+		rfGreen = p;
+		rfBlue = q;
+		break;
+	default:
+		rfRed = V;
+		rfGreen = t;
+		rfBlue = p;
+		break;
+	}
+}

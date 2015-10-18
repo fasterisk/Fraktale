@@ -27,7 +27,7 @@ Mandelbrot::Mandelbrot(int iResolutionX, int iResolutionY, unsigned int nMaxIter
 	m_fOffsetY = 0.0f;
 	m_fScale = 1.2f;
 
-	m_pTransferFunction = new TransferFunctionCustom2();
+	m_pTransferFunction = new TransferFunctionHSVToRGB();
 
 	m_pParentWindow = pParent;
 
@@ -38,6 +38,9 @@ Mandelbrot::Mandelbrot(int iResolutionX, int iResolutionY, unsigned int nMaxIter
 	m_bRenderPreview = true;
 	m_bGaussianEnabled = true;
 	m_bKeyPressed = false;
+
+	m_fTFPar1 = 200;
+	m_fTFPar2 = 0.0f;
 
 	setFocusPolicy(Qt::StrongFocus);
 }
@@ -120,14 +123,18 @@ void Mandelbrot::Render()
 	if (!m_bUp2Date)
 	{
 		int iSuperSampling = SUPERSAMPLING;
+		unsigned int nIterations = m_nMaxIterations;
 
 		if (m_bRenderPreview)
+		{
 			iSuperSampling = 1;
+			nIterations = 5000;
+		}
 
 		///////////////////////////////////////////////////////////////////////////////////
 		//Render mandelbrot
 		///////////////////////////////////////////////////////////////////////////////////
-		ItlRenderMandelbrotSet(m_iResolutionX * iSuperSampling, m_iResolutionY * iSuperSampling, 0);
+		ItlRenderMandelbrotSet(m_iResolutionX * iSuperSampling, m_iResolutionY * iSuperSampling, nIterations, 0);
 
 		///////////////////////////////////////////////////////////////////////////////////
 		//Apply gaussian blur
@@ -312,6 +319,32 @@ void	Mandelbrot::keyPressEvent(QKeyEvent * event)
 		}
 	}
 
+	if (event->key() == Qt::Key_1)
+	{
+		m_fTFPar1 += 100;
+		m_bUp2Date = false;
+		m_bRenderPreview = true;
+	}
+	else if (event->key() == Qt::Key_2)
+	{
+		m_fTFPar1 -= 100;
+		m_bUp2Date = false;
+		m_bRenderPreview = true;
+	}
+	else if (event->key() == Qt::Key_3)
+	{
+		m_fTFPar2 += 0.05f;
+		m_bUp2Date = false;
+		m_bRenderPreview = true;
+	}
+	else if (event->key() == Qt::Key_4)
+	{
+		m_fTFPar2 -= 0.05f;
+		m_bUp2Date = false;
+		m_bRenderPreview = true;
+	}
+
+
 	m_bKeyPressed = true;
 }
 
@@ -384,8 +417,14 @@ void	Mandelbrot::ItlInitializeShaderAndTextures()
 	}
 
 	glTexImage1D(GL_TEXTURE_1D, 0, GL_RGB, 1024, 0, GL_RGB, GL_FLOAT, pTransferFunctionTexture);
+	delete[] pTransferFunctionTexture;
+
 	glTexParameteri(GL_TEXTURE_1D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_1D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	
+	glTexParameteri(GL_TEXTURE_1D, GL_TEXTURE_WRAP_R, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_1D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_1D, GL_TEXTURE_WRAP_S, GL_REPEAT);
 
 
 	m_glnMandelbrotShader = ItlCreateShader("shader/Mandelbrot.vert", "shader/Mandelbrot.frag");
@@ -393,6 +432,8 @@ void	Mandelbrot::ItlInitializeShaderAndTextures()
 	m_MandelbrotShaderLocs.gliLookupTableLoc = glGetUniformLocation(m_glnMandelbrotShader, "tLookupTable");
 	m_MandelbrotShaderLocs.gliScaleLoc = glGetUniformLocation(m_glnMandelbrotShader, "fScale");
 	m_MandelbrotShaderLocs.gliOffsetLoc = glGetUniformLocation(m_glnMandelbrotShader, "v2Offset");
+	m_MandelbrotShaderLocs.gliTFPar1Loc = glGetUniformLocation(m_glnMandelbrotShader, "fTFPar1");
+	m_MandelbrotShaderLocs.gliTFPar2Loc = glGetUniformLocation(m_glnMandelbrotShader, "fTFPar2");
 
 	m_glnTextureToScreenShader = ItlCreateShader("shader/TextureToScreen.vert", "shader/TextureToScreen.frag");
 	m_TextureToScreenShaderLocs.gliInputTextureLoc = glGetUniformLocation(m_glnTextureToScreenShader, "tInputTexture");
@@ -469,7 +510,7 @@ GLuint	Mandelbrot::ItlCreateShader(std::string sVertexShaderPath, std::string sF
 
 /*********************************************************************************************
 *********************************************************************************************/
-void	Mandelbrot::ItlRenderMandelbrotSet(int iResolutionX, int iResolutionY, int iPingPongTextureIndex)
+void	Mandelbrot::ItlRenderMandelbrotSet(int iResolutionX, int iResolutionY, unsigned int nIterations, int iPingPongTextureIndex)
 {
 	//Resize texture
 	glBindTexture(GL_TEXTURE_2D, m_glnRenderTextures[iPingPongTextureIndex]);
@@ -496,9 +537,11 @@ void	Mandelbrot::ItlRenderMandelbrotSet(int iResolutionX, int iResolutionY, int 
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_1D, m_glnTransferFunctionTexture);
 	glUniform1d(m_MandelbrotShaderLocs.gliLookupTableLoc, GL_TEXTURE0);
-	glUniform1f(m_MandelbrotShaderLocs.gliMaxIterationsLoc, (float)m_nMaxIterations);
+	glUniform1f(m_MandelbrotShaderLocs.gliMaxIterationsLoc, (float)nIterations);
 	glUniform1f(m_MandelbrotShaderLocs.gliScaleLoc, m_fScale);
 	glUniform2f(m_MandelbrotShaderLocs.gliOffsetLoc, m_fOffsetX, m_fOffsetY);
+	glUniform1f(m_MandelbrotShaderLocs.gliTFPar1Loc, m_fTFPar1);
+	glUniform1f(m_MandelbrotShaderLocs.gliTFPar2Loc, m_fTFPar2);
 
 	// Draw the triangles !
 	glDrawArrays(GL_TRIANGLES, 0, 6);

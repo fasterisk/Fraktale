@@ -76,6 +76,8 @@ private:
 		GLint	gliScaleLoc;
 		GLint	gliOffsetLoc;
 		GLint	gliComplexLoc;
+		GLint	gliTFPar1Loc;
+		GLint	gliTFPar2Loc;
 	};
 
 	struct TextureToScreenShaderLoc
@@ -101,7 +103,7 @@ private:
 	GLuint	ItlCreateShader(std::string sVertexShaderPath, std::string sFragmentShaderPath);
 
 	/// Renders the julia set into the texture of the given index
-	void	ItlRenderJuliaSet(int iResolutionX, int iResolutionY, int iPingPongTextureIndex);
+	void	ItlRenderJuliaSet(int iResolutionX, int iResolutionY, unsigned int nIterations, int iPingPongTextureIndex);
 
 	/// Renders gaussian blur
 	void	ItlRenderGaussian(int iResolutionX, int iResolutionY, int iPingPongTextureIndex);
@@ -149,6 +151,9 @@ private:
 	bool	m_bKeyPressed;
 
 	int		m_iCurrentScreenTexture;
+
+	float	m_fTFPar1;
+	float	m_fTFPar2;
 };
 
 #endif //_JULIA_H_

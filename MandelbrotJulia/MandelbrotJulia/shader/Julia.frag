@@ -5,6 +5,8 @@ uniform float fScale;
 uniform vec2 v2Offset;
 uniform sampler1D tLookupTable;
 uniform vec2 v2Complex;
+uniform float fTFPar1;
+uniform float fTFPar2;
 
 in vec2 v2f_v2TexCoords;
 
@@ -31,6 +33,6 @@ void main(void)
 	}
 
 	if(i < fMaxIterations)
-		color = texture(tLookupTable, i / fMaxIterations);
+		color = texture(tLookupTable, fTFPar2 + (i / fTFPar1));
 
 }

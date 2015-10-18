@@ -80,6 +80,8 @@ private:
 		GLint	gliLookupTableLoc;
 		GLint	gliScaleLoc;
 		GLint	gliOffsetLoc;
+		GLint	gliTFPar1Loc;
+		GLint	gliTFPar2Loc;
 	};
 
 	struct TextureToScreenShaderLoc
@@ -105,7 +107,7 @@ private:
 	GLuint	ItlCreateShader(std::string sVertexShaderPath, std::string sFragmentShaderPath);
 
 	/// Renders the mandelbrot set into the texture of the given index
-	void	ItlRenderMandelbrotSet(int iResolutionX, int iResolutionY, int iPingPongTextureIndex);
+	void	ItlRenderMandelbrotSet(int iResolutionX, int iResolutionY, unsigned int nIterations, int iPingPongTextureIndex);
 
 	/// Renders gaussian blur
 	void	ItlRenderGaussian(int iResolutionX, int iResolutionY, int iPingPongTextureIndex);
@@ -155,6 +157,9 @@ private:
 	bool	m_bKeyPressed;
 
 	int		m_iCurrentScreenTexture;
+	float	m_fTFPar1;
+	float	m_fTFPar2;
+
 
 };
 

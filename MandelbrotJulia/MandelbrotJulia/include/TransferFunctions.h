@@ -49,5 +49,15 @@ public:
 	virtual void	GetColor(float fValue, float & rfRed, float & rfGreen, float & rfBlue);
 };
 
+class TransferFunctionHSVToRGB : public ITransferFunction
+{
+public:
+
+	/// PUBLIC OPERATIONS
+
+	/// Returns the color for a value between 0 and 1
+	virtual void	GetColor(float fValue, float & rfRed, float & rfGreen, float & rfBlue);
+};
+
 
 #endif //_TRANSFERFUNCTIONS_H_

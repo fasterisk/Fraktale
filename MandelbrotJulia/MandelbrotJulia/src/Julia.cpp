@@ -8,7 +8,7 @@
 #define DOWN 2
 #define LEFT 3
 
-#define SUPERSAMPLING 4
+#define SUPERSAMPLING 2
 
 /*********************************************************************************************
 *********************************************************************************************/
@@ -26,7 +26,7 @@ Julia::Julia(int iResolutionX, int iResolutionY, unsigned int nMaxIterations, QW
 	m_fOffsetY = 0.0f;
 	m_fScale = 1.0f;
 
-	m_pTransferFunction = new TransferFunctionCustom2();
+	m_pTransferFunction = new TransferFunctionHSVToRGB();
 
 	m_fComplexReal = 0.0f;
 	m_fComplexImag = 0.0f;
@@ -35,6 +35,9 @@ Julia::Julia(int iResolutionX, int iResolutionY, unsigned int nMaxIterations, QW
 	m_bRenderPreview = true;
 	m_bGaussianEnabled = true;
 	m_bKeyPressed = false;
+
+	m_fTFPar1 = 200;
+	m_fTFPar2 = 0.0f;
 
 	setFocusPolicy(Qt::StrongFocus);
 }
@@ -118,14 +121,18 @@ void Julia::Render()
 	if (!m_bUp2Date)
 	{
 		int iSuperSampling = SUPERSAMPLING;
+		unsigned int nIterations = m_nMaxIterations;
 
 		if (m_bRenderPreview)
+		{
 			iSuperSampling = 1;
+			nIterations = 5000;
+		}
 
 		///////////////////////////////////////////////////////////////////////////////////
 		//Render julia set
 		///////////////////////////////////////////////////////////////////////////////////
-		ItlRenderJuliaSet(m_iResolutionX * iSuperSampling, m_iResolutionY * iSuperSampling, 0);
+		ItlRenderJuliaSet(m_iResolutionX * iSuperSampling, m_iResolutionY * iSuperSampling, nIterations, 0);
 
 		///////////////////////////////////////////////////////////////////////////////////
 		//Apply gaussian blur
@@ -272,6 +279,31 @@ void	Julia::keyPressEvent(QKeyEvent * event)
 		}
 	}
 
+	if (event->key() == Qt::Key_1)
+	{
+		m_fTFPar1 += 100;
+		m_bUp2Date = false;
+		m_bRenderPreview = true;
+	}
+	else if (event->key() == Qt::Key_2)
+	{
+		m_fTFPar1 -= 100;
+		m_bUp2Date = false;
+		m_bRenderPreview = true;
+	}
+	else if (event->key() == Qt::Key_3)
+	{
+		m_fTFPar2 += 0.05f;
+		m_bUp2Date = false;
+		m_bRenderPreview = true;
+	}
+	else if (event->key() == Qt::Key_4)
+	{
+		m_fTFPar2 -= 0.05f;
+		m_bUp2Date = false;
+		m_bRenderPreview = true;
+	}
+
 	m_bKeyPressed = true;
 }
 
@@ -352,6 +384,8 @@ void	Julia::ItlInitializeShaderAndTextures()
 	m_JuliaShaderLocs.gliScaleLoc = glGetUniformLocation(m_glnJuliaShader, "fScale");
 	m_JuliaShaderLocs.gliOffsetLoc = glGetUniformLocation(m_glnJuliaShader, "v2Offset");
 	m_JuliaShaderLocs.gliComplexLoc = glGetUniformLocation(m_glnJuliaShader, "v2Complex");
+	m_JuliaShaderLocs.gliTFPar1Loc = glGetUniformLocation(m_glnJuliaShader, "fTFPar1");
+	m_JuliaShaderLocs.gliTFPar2Loc = glGetUniformLocation(m_glnJuliaShader, "fTFPar2");
 
 	m_glnTextureToScreenShader = ItlCreateShader("shader/TextureToScreen.vert", "shader/TextureToScreen.frag");
 	m_TextureToScreenShaderLocs.gliInputTextureLoc = glGetUniformLocation(m_glnTextureToScreenShader, "tInputTexture");
@@ -428,7 +462,7 @@ GLuint	Julia::ItlCreateShader(std::string sVertexShaderPath, std::string sFragme
 
 /*********************************************************************************************
 *********************************************************************************************/
-void	Julia::ItlRenderJuliaSet(int iResolutionX, int iResolutionY, int iPingPongTextureIndex)
+void	Julia::ItlRenderJuliaSet(int iResolutionX, int iResolutionY, unsigned int nIterations, int iPingPongTextureIndex)
 {
 	//Resize texture
 	glBindTexture(GL_TEXTURE_2D, m_glnRenderTextures[iPingPongTextureIndex]);
@@ -455,10 +489,12 @@ void	Julia::ItlRenderJuliaSet(int iResolutionX, int iResolutionY, int iPingPongT
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_1D, m_glnTransferFunctionTexture);
 	glUniform1d(m_JuliaShaderLocs.gliLookupTableLoc, GL_TEXTURE0);
-	glUniform1f(m_JuliaShaderLocs.gliMaxIterationsLoc, (float)m_nMaxIterations);
+	glUniform1f(m_JuliaShaderLocs.gliMaxIterationsLoc, (float)nIterations);
 	glUniform1f(m_JuliaShaderLocs.gliScaleLoc, m_fScale);
 	glUniform2f(m_JuliaShaderLocs.gliOffsetLoc, m_fOffsetX, m_fOffsetY);
 	glUniform2f(m_JuliaShaderLocs.gliComplexLoc, m_fComplexReal, m_fComplexImag);
+	glUniform1f(m_JuliaShaderLocs.gliTFPar1Loc, m_fTFPar1);
+	glUniform1f(m_JuliaShaderLocs.gliTFPar2Loc, m_fTFPar2);
 
 	// Draw the triangles !
 	glDrawArrays(GL_TRIANGLES, 0, 6);
