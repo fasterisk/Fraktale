@@ -33,6 +33,9 @@ Mandelbrot::Mandelbrot(int iResolutionX, int iResolutionY, unsigned int nMaxIter
 
 	m_bLeftMousePressed = false;
 	m_bMiddleMousePressed = false;
+
+	m_bUp2Date = false;
+	m_bRenderPreview = true;
 }
 
 /*********************************************************************************************
@@ -59,6 +62,9 @@ void	Mandelbrot::SetResolution(int iResolutionX, int iResolutionY)
 		m_iResolutionX = iResolutionX;
 		m_iResolutionY = iResolutionY;
 		Reset();
+
+		m_bUp2Date = false;
+		m_bRenderPreview = true;
 	}
 }
 
@@ -70,6 +76,9 @@ void	Mandelbrot::SetMaxNumIterations(int iNumIterations)
 	if (m_nMaxIterations != iNumIterations)
 	{
 		m_nMaxIterations = iNumIterations;
+
+		m_bUp2Date = false;
+		m_bRenderPreview = true;
 	}
 }
 
@@ -77,55 +86,87 @@ void	Mandelbrot::SetMaxNumIterations(int iNumIterations)
 *********************************************************************************************/
 void	Mandelbrot::SetOffset(float fXOffset, float fYOffset)
 {
-	m_fOffsetX = fXOffset;
-	m_fOffsetY = fYOffset;
+	if (fXOffset != m_fOffsetX || fYOffset != m_fOffsetY)
+	{
+		m_fOffsetX = fXOffset;
+		m_fOffsetY = fYOffset;
+
+		m_bUp2Date = false;
+		m_bRenderPreview = true;
+	}
 }
 
 /*********************************************************************************************
 *********************************************************************************************/
 void	Mandelbrot::SetScale(float fScale)
 {
-	m_fScale = fScale;
+	if (fScale != m_fScale)
+	{
+		m_fScale = fScale;
+
+		m_bUp2Date = false;
+		m_bRenderPreview = true;
+	}
 }
 
 /*********************************************************************************************
 *********************************************************************************************/
 void Mandelbrot::Render()
 {
-	///////////////////////////////////////////////////////////////////////////////////
-	//Render mandelbrot
-	///////////////////////////////////////////////////////////////////////////////////
-	glViewport(0, 0, m_iResolutionX * SUPERSAMPLING, m_iResolutionY * SUPERSAMPLING);
-	glUseProgram(m_glnMandelbrotShader);
+	if (!m_bUp2Date)
+	{
+		int iSuperSampling = SUPERSAMPLING;
 
-	glBindFramebuffer(GL_FRAMEBUFFER, m_glnFBO);
+		if (m_bRenderPreview)
+			iSuperSampling = 1;
 
-	glEnableVertexAttribArray(0);
-	glBindBuffer(GL_ARRAY_BUFFER, m_glnVertexBuffer);
-	glVertexAttribPointer(
-		0,                  // attribute. No particular reason for 0, but must match the layout in the shader.
-		3,                  // size
-		GL_FLOAT,           // type
-		GL_FALSE,           // normalized?
-		0,                  // stride
-		(void*)0            // array buffer offset
-		);
+		//Resize texture
+		glBindTexture(GL_TEXTURE_2D, m_glnRenderTexture);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, m_iResolutionX * iSuperSampling, m_iResolutionY * iSuperSampling, 0, GL_RGBA, GL_FLOAT, NULL);
+		glBindTexture(GL_TEXTURE_2D, 0);
+
+		///////////////////////////////////////////////////////////////////////////////////
+		//Render mandelbrot
+		///////////////////////////////////////////////////////////////////////////////////
+		glViewport(0, 0, m_iResolutionX * iSuperSampling, m_iResolutionY * iSuperSampling);
+		glUseProgram(m_glnMandelbrotShader);
+
+		glBindFramebuffer(GL_FRAMEBUFFER, m_glnFBO);
+
+		glEnableVertexAttribArray(0);
+		glBindBuffer(GL_ARRAY_BUFFER, m_glnVertexBuffer);
+		glVertexAttribPointer(
+			0,                  // attribute. No particular reason for 0, but must match the layout in the shader.
+			3,                  // size
+			GL_FLOAT,           // type
+			GL_FALSE,           // normalized?
+			0,                  // stride
+			(void*)0            // array buffer offset
+			);
 
 
-	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_1D, m_glnTransferFunctionTexture);
-	glUniform1d(m_gliMBLookupTableLoc, GL_TEXTURE0);
-	glUniform1f(m_gliMBMaxIterationsLoc, (float)m_nMaxIterations);
-	glUniform1f(m_gliMBScaleLoc, m_fScale);
-	glUniform2f(m_gliMBOffsetLoc, m_fOffsetX, m_fOffsetY);
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_1D, m_glnTransferFunctionTexture);
+		glUniform1d(m_gliMBLookupTableLoc, GL_TEXTURE0);
+		glUniform1f(m_gliMBMaxIterationsLoc, (float)m_nMaxIterations);
+		glUniform1f(m_gliMBScaleLoc, m_fScale);
+		glUniform2f(m_gliMBOffsetLoc, m_fOffsetX, m_fOffsetY);
 
-	// Draw the triangles !
-	glDrawArrays(GL_TRIANGLES, 0, 6);
+		// Draw the triangles !
+		glDrawArrays(GL_TRIANGLES, 0, 6);
 
-	glDisableVertexAttribArray(0);
+		glDisableVertexAttribArray(0);
 
-	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+		glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
+		//
+
+		if (m_bRenderPreview)
+			m_bRenderPreview = false;
+		else
+			m_bUp2Date = true;
+	}
+	
 	///////////////////////////////////////////////////////////////////////////////////
 	// Render to screen
 	///////////////////////////////////////////////////////////////////////////////////
@@ -233,8 +274,9 @@ void	Mandelbrot::mouseMoveEvent(QMouseEvent * event)
 		int iDiffX = event->x() - m_iMouseXBefore;
 		int iDiffY = event->y() - m_iMouseYBefore;
 
-		m_fOffsetX -= (iDiffX / (float)m_iResolutionX) * m_fScale;
-		m_fOffsetY += (iDiffY / (float)m_iResolutionY) * m_fScale;
+
+		SetOffset(m_fOffsetX - (iDiffX / (float)m_iResolutionX) * m_fScale,
+				  m_fOffsetY + (iDiffY / (float)m_iResolutionY) * m_fScale);
 
 		m_iMouseXBefore = event->x();
 		m_iMouseYBefore = event->y();
@@ -279,7 +321,7 @@ void	Mandelbrot::wheelEvent(QWheelEvent * event)
 	int iNumSteps = iNumDegrees / 15;
 	iNumSteps *= 10.0f;
 
-	m_fScale = std::max(0.0f, m_fScale * (1.0f - iNumSteps / 100.0f));
+	SetScale(std::max(0.0f, m_fScale * (1.0f - iNumSteps / 100.0f)));
 }
 
 /*********************************************************************************************

@@ -119,6 +119,9 @@ private:
 
 	MJWindow * m_pParentWindow;
 
+	bool	m_bUp2Date;
+	bool	m_bRenderPreview;
+
 };
 
 #endif //_MANDELBROT_H_

@@ -5,6 +5,7 @@ uniform float fMaxIterations;
 uniform float fScale;
 uniform vec2 v2Offset;
 uniform sampler1D tLookupTable;
+uniform float fPixelSize;
 
 in vec2 v2f_v2C;
 
